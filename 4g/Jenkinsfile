@@ -5,7 +5,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Acceder au projet 4G'
-                dir("4G"){
+                dir("4g"){
                     echo "Deploying containers with docker-compose (in 4G)"
                     sh './start.sh'
 
