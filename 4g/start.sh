@@ -1,10 +1,9 @@
 #!/bin/bash
 # Install docker-compose
 echo 'Installing docker-compose...'
-su -
 apt update
-apt install sudo
-sudo apt install -y docker-compose
+apt install docker-compose-plugin
+
 
 # Build the Docker images
 docker-compose build
