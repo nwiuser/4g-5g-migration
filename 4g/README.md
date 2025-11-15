@@ -1,4 +1,4 @@
-# srsran-docker-emulated - 3
+# srsran-docker-emulated - 4
 
 This is a minimal example of an end-to-end [srsRAN](https://github.com/srsran/srsRAN) LTE system running with Docker.
 The core network, base station and user device all run in
