@@ -6,6 +6,10 @@ pipeline {
             steps {
                 echo "Acceder au projet 4G"
                 echo "Deploying containers with docker-compose (in 4G)"
+                echo "Install docker-compose plugin"
+                apt update
+                apt install docker-compose-plugin
+
                 dir("${WORKSPACE}/4g") {
 
                     sh "sed -i 's/\r\$//' start.sh || true"   // fix CRLF if Windows
