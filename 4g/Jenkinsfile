@@ -1,18 +1,14 @@
 pipeline {
-    agent 
-        docker {
-            image 'docker:24.0'
-            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
-        }
+    agent any
 
     stages {
         stage('Deploy') {
             steps {
                 echo "Acceder au projet 4G"
                 echo "Deploying containers with docker-compose (in 4G)"
-                // echo "Install docker-compose plugin"
-                // sh 'apt update'
-                // sh 'apt install docker-compose-plugin'
+                echo "Install docker-compose plugin"
+                sh 'apt update'
+                sh 'apt install docker-compose-plugin'
 
                 dir("${WORKSPACE}/4g") {
 
