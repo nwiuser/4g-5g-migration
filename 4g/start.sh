@@ -1,7 +1,7 @@
 #!/bin/bash
 # Install docker-compose
 echo 'Installing docker-compose...'
-apt-get install docker-compose-plugin -y
+sudo apt-get install docker-compose-plugin -y
 
 # Build the Docker images
 docker-compose build
