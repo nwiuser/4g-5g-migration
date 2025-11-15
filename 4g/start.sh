@@ -1,4 +1,7 @@
 #!/bin/bash
+# Install docker-compose
+echo 'installing docker-compose...'
+
 # Build the Docker images
 docker-compose build
 
