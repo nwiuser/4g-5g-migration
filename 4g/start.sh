@@ -1,7 +1,8 @@
 #!/bin/bash
 # Install docker-compose
 echo 'Installing docker-compose...'
-sudo apt-get install docker-compose-plugin -y
+apk add docker-cli
+apt install docker.io
 
 # Build the Docker images
 docker-compose build
