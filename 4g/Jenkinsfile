@@ -6,7 +6,13 @@ pipeline {
             steps {
                 echo "Acceder au projet 4G"
                 echo "Deploying containers with docker-compose (in 4G)"
-                sh './start.sh'
+                dir("${WORKSPACE}/4g") {
+
+                    sh "sed -i 's/\r\$//' start.sh || true"   // fix CRLF if Windows
+                    sh 'chmod +x start.sh'
+
+                    sh './start.sh'
+                }
 
                 echo "Install taceroute and speed test into your srsUE container use:"
                 sh './setup--cli.sh'
