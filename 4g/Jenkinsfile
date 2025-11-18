@@ -97,10 +97,9 @@ pipeline {
 
                 script {
                     // Find the correct directory (4G or 4g)
-                    def projectDir = fileExists("${WORKSPACE}/4G") ? "4G" : "4g"
-                    echo "Using directory: ${projectDir}"
+                    echo "Using directory: 4g"
                     
-                    dir("${WORKSPACE}/${projectDir}") {
+                    dir("${WORKSPACE}/4g") {
                         sh "sed -i 's/\r\$//' start.sh setup-cli.sh setup-internet-access.sh || true"
                         sh 'chmod +x start.sh setup-cli.sh setup-internet-access.sh'
 
