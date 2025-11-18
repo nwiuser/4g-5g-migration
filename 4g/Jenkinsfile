@@ -49,7 +49,7 @@ pipeline {
                         else
                             echo ""
                             echo "╔════════════════════════════════════════════════════════════════════════╗"
-                            echo "║ ERROR: Docker Compose is not available                                ║"
+                            echo "║ ERROR: Docker Compose is not available                                 ║"
                             echo "╚════════════════════════════════════════════════════════════════════════╝"
                             echo ""
                             echo "Docker is installed but Docker Compose plugin is missing."
@@ -65,7 +65,7 @@ pipeline {
                         if ! docker ps >/dev/null 2>&1; then
                             echo ""
                             echo "╔════════════════════════════════════════════════════════════════════════╗"
-                            echo "║ ERROR: Cannot connect to Docker daemon                                ║"
+                            echo "║ ERROR: Cannot connect to Docker daemon                                 ║"
                             echo "╚════════════════════════════════════════════════════════════════════════╝"
                             echo ""
                             echo "Docker is installed but the Jenkins user cannot access it."
@@ -95,17 +95,23 @@ pipeline {
                 echo "Acceder au projet 4G"
                 echo "Deploying containers with docker-compose (in 4G)"
 
-                dir("${WORKSPACE}/4G") {
-                    sh "sed -i 's/\r\$//' start.sh setup-cli.sh setup-internet-access.sh || true"
-                    sh 'chmod +x start.sh setup-cli.sh setup-internet-access.sh'
-
-                    sh './start.sh'
+                script {
+                    // Find the correct directory (4G or 4g)
+                    def projectDir = fileExists("${WORKSPACE}/4G") ? "4G" : "4g"
+                    echo "Using directory: ${projectDir}"
                     
-                    echo "Install traceroute and speed test into your srsUE container"
-                    sh './setup-cli.sh'
+                    dir("${WORKSPACE}/${projectDir}") {
+                        sh "sed -i 's/\r\$//' start.sh setup-cli.sh setup-internet-access.sh || true"
+                        sh 'chmod +x start.sh setup-cli.sh setup-internet-access.sh'
 
-                    echo "Configure internet access via corenetwork"
-                    sh './setup-internet-access.sh'
+                        sh './start.sh'
+                        
+                        echo "Install traceroute and speed test into your srsUE container"
+                        sh './setup-cli.sh'
+
+                        echo "Configure internet access via corenetwork"
+                        sh './setup-internet-access.sh'
+                    }
                 }
             }
         }
