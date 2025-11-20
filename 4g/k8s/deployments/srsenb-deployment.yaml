@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsenb
+  namespace: srsran
+  labels:
+    app: srsenb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsenb
+  template:
+    metadata:
+      labels:
+        app: srsenb
+    spec:
+      containers:
+      - name: srsenb
+        image: srsran:latest
+        imagePullPolicy: Never
+        command:
+          - srsenb
+          - enb.conf
+          - --enb.mme_addr=srsepc.srsran.svc.cluster.local
+          - --enb.gtp_bind_addr=0.0.0.0
+          - --enb.s1c_bind_addr=0.0.0.0
+          - --enb_files.sib_config=sib.conf
+          - --rf.device_name=zmq
+          - --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.srsran.svc.cluster.local:2001,id=enb,base_srate=23.04e6
+        securityContext:
+          capabilities:
+            add:
+              - SYS_NICE
+        ports:
+        - containerPort: 2000
+          name: zmq-tx
+          protocol: TCP
+      restartPolicy: Always
