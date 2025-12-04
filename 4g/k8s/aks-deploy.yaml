@@ -1,0 +1,278 @@
+# Azure Kubernetes Service (AKS) Deployment for srsRAN 4G
+# This manifest is optimized for AKS deployment
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: srsran
+
+---
+# Storage Class for Azure Disks (if needed for persistent storage)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-disk-standard
+  namespace: srsran
+provisioner: disk.csi.azure.com
+parameters:
+  storageaccounttype: Standard_LRS
+  kind: Managed
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# EPC Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: srsepc
+  namespace: srsran
+  labels:
+    app: srsepc
+spec:
+  selector:
+    app: srsepc
+  ports:
+    - name: s1-mme
+      protocol: TCP
+      port: 36412
+      targetPort: 36412
+    - name: gtpu
+      protocol: UDP
+      port: 2152
+      targetPort: 2152
+  type: ClusterIP
+
+---
+# EPC Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsepc
+  namespace: srsran
+  labels:
+    app: srsepc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsepc
+  template:
+    metadata:
+      labels:
+        app: srsepc
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: srsepc
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        imagePullPolicy: Always
+        command:
+          - srsepc
+          - epc.conf
+          - --mme.mme_bind_addr=0.0.0.0
+          - --spgw.gtpu_bind_addr=0.0.0.0
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_NICE
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: tun
+          mountPath: /dev/net/tun
+      volumes:
+      - name: tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+      restartPolicy: Always
+
+---
+# eNodeB Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: srsenb
+  namespace: srsran
+  labels:
+    app: srsenb
+spec:
+  selector:
+    app: srsenb
+  ports:
+    - name: zmq-tx
+      protocol: TCP
+      port: 2000
+      targetPort: 2000
+  type: ClusterIP
+
+---
+# eNodeB Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsenb
+  namespace: srsran
+  labels:
+    app: srsenb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsenb
+  template:
+    metadata:
+      labels:
+        app: srsenb
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+      - name: wait-for-epc
+        image: busybox:1.35
+        command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 20; echo "EPC should be ready now"']
+      containers:
+      - name: srsenb
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        imagePullPolicy: Always
+        command:
+          - sh
+          - -c
+          - |
+            MME_ADDR=$(getent hosts srsepc.srsran.svc.cluster.local | awk '{ print $1 }')
+            echo "EPC IP Address: $MME_ADDR"
+            srsenb enb.conf \
+              --enb.mme_addr=$MME_ADDR \
+              --enb.gtp_bind_addr=0.0.0.0 \
+              --enb.s1c_bind_addr=0.0.0.0 \
+              --enb_files.sib_config=sib.conf \
+              --rf.device_name=zmq \
+              --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.srsran.svc.cluster.local:2001,id=enb,base_srate=23.04e6
+        securityContext:
+          capabilities:
+            add:
+              - SYS_NICE
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        ports:
+        - containerPort: 2000
+          name: zmq-tx
+          protocol: TCP
+      restartPolicy: Always
+
+---
+# UE Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: srsue
+  namespace: srsran
+  labels:
+    app: srsue
+spec:
+  selector:
+    app: srsue
+  ports:
+    - name: zmq-tx
+      protocol: TCP
+      port: 2001
+      targetPort: 2001
+  type: ClusterIP
+
+---
+# UE Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsue
+  namespace: srsran
+  labels:
+    app: srsue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsue
+  template:
+    metadata:
+      labels:
+        app: srsue
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+      - name: wait-for-enb
+        image: busybox:1.35
+        command: ['sh', '-c', 'echo "Waiting for eNodeB to be ready..."; sleep 25; echo "eNodeB should be ready now"']
+      containers:
+      - name: srsue
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        imagePullPolicy: Always
+        command:
+          - srsue
+          - ue.conf
+          - --rf.device_name=zmq
+          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.srsran.svc.cluster.local:2000,id=ue,base_srate=23.04e6
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_NICE
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: tun
+          mountPath: /dev/net/tun
+        ports:
+        - containerPort: 2001
+          name: zmq-tx
+          protocol: TCP
+      volumes:
+      - name: tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+      restartPolicy: Always
+
+---
+# Horizontal Pod Autoscaler for EPC (optional)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: srsepc-hpa
+  namespace: srsran
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: srsepc
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
