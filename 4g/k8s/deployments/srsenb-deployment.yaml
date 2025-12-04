@@ -20,7 +20,7 @@ spec:
         command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 15; echo "EPC should be ready now"']
       containers:
       - name: srsenb
-        image: srsran:latest
+        image: srsran-enb:latest
         imagePullPolicy: Never
         command:
           - sh

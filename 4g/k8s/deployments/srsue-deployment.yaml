@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: srsue
-        image: srsran:latest
+        image: srsran-ue:latest
         imagePullPolicy: Never
         command:
           - srsue

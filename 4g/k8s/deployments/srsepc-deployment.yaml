@@ -18,11 +18,6 @@ spec:
       - name: srsepc
         image: srsran:latest
         imagePullPolicy: Never
-        command:
-          - srsepc
-          - epc.conf
-          - --mme.mme_bind_addr=0.0.0.0
-          - --spgw.gtpu_bind_addr=0.0.0.0
         securityContext:
           privileged: true
           capabilities:

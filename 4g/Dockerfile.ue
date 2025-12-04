@@ -1,0 +1,66 @@
+# Base image with srsRAN compiled
+FROM debian:bullseye-slim as base
+
+# Install dependencies
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+     cmake \
+     build-essential \
+     git \
+     libuhd-dev \
+     uhd-host \
+     libboost-all-dev \
+     libvolk2-dev \
+     libfftw3-dev \
+     libmbedtls-dev \
+     libsctp-dev \
+     libconfig++-dev \
+     curl \
+     ca-certificates \
+     iputils-ping \
+     iproute2 \
+     iptables \
+     libzmq3-dev \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srsran
+
+# Pinned git commit used for this example
+ARG COMMIT=ce8a3cae171f08c9bce83ae3611e56f2d168d073
+
+# Clone and checkout commit
+RUN git clone https://github.com/srsran/srsRAN srsRAN-${COMMIT}
+
+WORKDIR /srsran/srsRAN-${COMMIT}
+
+RUN git checkout ${COMMIT}
+
+WORKDIR /srsran/srsRAN-build
+
+# Build srsRAN
+RUN cmake ../srsRAN-${COMMIT} \
+ && make \
+ && make test
+
+# Install
+RUN make install
+
+# Update dynamic linker
+RUN ldconfig
+
+WORKDIR /srsran
+
+# Copy all .example files and remove that suffix
+RUN ls srsRAN-${COMMIT}/*/*.example
+RUN cp srsRAN-${COMMIT}/*/*.example ./ \
+ && bash -c 'for file in *.example; do mv "$file" "${file%.example}"; done'
+
+# UE specific image
+FROM base as srsue
+
+WORKDIR /srsran
+
+# Run commands with line buffered standard output
+ENTRYPOINT [ "stdbuf", "-o", "L", "srsue" ]
+CMD [ "ue.conf" ]

@@ -67,13 +67,8 @@ spec:
         kubernetes.io/os: linux
       containers:
       - name: srsepc
-        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran-epc:latest
         imagePullPolicy: Always
-        command:
-          - srsepc
-          - epc.conf
-          - --mme.mme_bind_addr=0.0.0.0
-          - --spgw.gtpu_bind_addr=0.0.0.0
         securityContext:
           privileged: true
           capabilities:
@@ -143,7 +138,7 @@ spec:
         command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 20; echo "EPC should be ready now"']
       containers:
       - name: srsenb
-        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran-enb:latest
         imagePullPolicy: Always
         command:
           - sh
@@ -221,7 +216,7 @@ spec:
         command: ['sh', '-c', 'echo "Waiting for eNodeB to be ready..."; sleep 25; echo "eNodeB should be ready now"']
       containers:
       - name: srsue
-        image: <YOUR_ACR_NAME>.azurecr.io/srsran:latest
+        image: <YOUR_ACR_NAME>.azurecr.io/srsran-ue:latest
         imagePullPolicy: Always
         command:
           - srsue
