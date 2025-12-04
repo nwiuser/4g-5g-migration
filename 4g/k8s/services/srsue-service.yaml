@@ -2,7 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: srsue
-  namespace: srsran
+  labels:
+    app: srsue
 spec:
   selector:
     app: srsue
@@ -11,4 +12,4 @@ spec:
       protocol: TCP
       port: 2001
       targetPort: 2001
-  type: ClusterIP
+  clusterIP: None

@@ -2,11 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: srsenb
-  namespace: srsran
   labels:
     app: srsenb
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: srsenb
@@ -15,19 +14,27 @@ spec:
       labels:
         app: srsenb
     spec:
+      initContainers:
+      - name: wait-for-epc
+        image: busybox:1.35
+        command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 15; echo "EPC should be ready now"']
       containers:
       - name: srsenb
         image: srsran:latest
         imagePullPolicy: Never
         command:
-          - srsenb
-          - enb.conf
-          - --enb.mme_addr=srsepc.srsran.svc.cluster.local
-          - --enb.gtp_bind_addr=0.0.0.0
-          - --enb.s1c_bind_addr=0.0.0.0
-          - --enb_files.sib_config=sib.conf
-          - --rf.device_name=zmq
-          - --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.srsran.svc.cluster.local:2001,id=enb,base_srate=23.04e6
+          - sh
+          - -c
+          - |
+            MME_ADDR=$(getent hosts srsepc.default.svc.cluster.local | awk '{ print $1 }')
+            echo "EPC IP Address: $MME_ADDR"
+            srsenb enb.conf \
+              --enb.mme_addr=$MME_ADDR \
+              --enb.gtp_bind_addr=0.0.0.0 \
+              --enb.s1c_bind_addr=0.0.0.0 \
+              --enb_files.sib_config=sib.conf \
+              --rf.device_name=zmq \
+              --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.default.svc.cluster.local:2001,id=enb,base_srate=23.04e6
         securityContext:
           capabilities:
             add:

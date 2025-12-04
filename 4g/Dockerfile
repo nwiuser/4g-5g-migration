@@ -1,17 +1,18 @@
-FROM ubuntu:bionic as base
+FROM debian:bullseye-slim as base
 
 # Install dependencies
 # We need uhd so enb and ue are built
 # Use curl and unzip to get a specific commit state from github
 # Also install ping to test connections
 RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
      cmake \
+     build-essential \
      git \
      libuhd-dev \
      uhd-host \
-     libboost-program-options-dev \
-     libvolk1-dev \
+     libboost-all-dev \
+     libvolk2-dev \
      libfftw3-dev \
      libmbedtls-dev \
      libsctp-dev \
@@ -22,6 +23,7 @@ RUN apt-get update \
      iproute2 \
      iptables \
      libzmq3-dev \
+ && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
 # Install docker-compose v2 (binaire officiel)

@@ -1,72 +1,11 @@
----
-# Namespace pour isoler les ressources srsRAN
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: srsran
-  labels:
-    name: srsran
+# Déploiement complet de srsRAN sur Kubernetes
+# Appliquer avec: kubectl apply -f deploy-all.yaml
 
 ---
-# Deployment pour srsepc (EPC - Core Network)
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: srsepc
-  namespace: srsran
-  labels:
-    app: srsepc
-    component: core-network
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: srsepc
-  template:
-    metadata:
-      labels:
-        app: srsepc
-        component: core-network
-    spec:
-      containers:
-      - name: srsepc
-        image: srsran:latest
-        imagePullPolicy: Never
-        command:
-          - srsepc
-          - epc.conf
-          - --mme.mme_bind_addr=0.0.0.0
-          - --spgw.gtpu_bind_addr=0.0.0.0
-        securityContext:
-          capabilities:
-            add:
-              - NET_ADMIN
-              - SYS_NICE
-          privileged: true
-        volumeMounts:
-        - name: tun
-          mountPath: /dev/net/tun
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
-      volumes:
-      - name: tun
-        hostPath:
-          path: /dev/net/tun
-          type: CharDevice
-      restartPolicy: Always
-
----
-# Service pour srsepc
 apiVersion: v1
 kind: Service
 metadata:
   name: srsepc
-  namespace: srsran
   labels:
     app: srsepc
 spec:
@@ -81,69 +20,55 @@ spec:
       protocol: UDP
       port: 2152
       targetPort: 2152
-  type: ClusterIP
+  clusterIP: None
 
 ---
-# Deployment pour srsenb (eNodeB - Base Station)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: srsenb
-  namespace: srsran
+  name: srsepc
   labels:
-    app: srsenb
-    component: radio-access
+    app: srsepc
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: srsenb
+      app: srsepc
   template:
     metadata:
       labels:
-        app: srsenb
-        component: radio-access
+        app: srsepc
     spec:
       containers:
-      - name: srsenb
+      - name: srsepc
         image: srsran:latest
         imagePullPolicy: Never
         command:
-          - srsenb
-          - enb.conf
-          - --enb.mme_addr=srsepc.srsran.svc.cluster.local
-          - --enb.gtp_bind_addr=0.0.0.0
-          - --enb.s1c_bind_addr=0.0.0.0
-          - --enb_files.sib_config=sib.conf
-          - --rf.device_name=zmq
-          - --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.srsran.svc.cluster.local:2001,id=enb,base_srate=23.04e6
+          - srsepc
+          - epc.conf
+          - --mme.mme_bind_addr=0.0.0.0
+          - --spgw.gtpu_bind_addr=0.0.0.0
         securityContext:
+          privileged: true
           capabilities:
             add:
+              - NET_ADMIN
               - SYS_NICE
-        ports:
-        - containerPort: 2000
-          name: zmq-tx
-          protocol: TCP
-        - containerPort: 36412
-          name: s1-mme
-          protocol: TCP
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
+        volumeMounts:
+        - name: tun
+          mountPath: /dev/net/tun
+      volumes:
+      - name: tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
       restartPolicy: Always
 
 ---
-# Service pour srsenb
 apiVersion: v1
 kind: Service
 metadata:
   name: srsenb
-  namespace: srsran
   labels:
     app: srsenb
 spec:
@@ -154,76 +79,61 @@ spec:
       protocol: TCP
       port: 2000
       targetPort: 2000
-    - name: s1-mme
-      protocol: TCP
-      port: 36412
-      targetPort: 36412
-  type: ClusterIP
+  clusterIP: None
 
 ---
-# Deployment pour srsue (UE - User Equipment)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: srsue
-  namespace: srsran
+  name: srsenb
   labels:
-    app: srsue
-    component: user-equipment
+    app: srsenb
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: srsue
+      app: srsenb
   template:
     metadata:
       labels:
-        app: srsue
-        component: user-equipment
+        app: srsenb
     spec:
+      initContainers:
+      - name: wait-for-epc
+        image: busybox:1.35
+        command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 15; echo "EPC should be ready now"']
       containers:
-      - name: srsue
+      - name: srsenb
         image: srsran:latest
         imagePullPolicy: Never
         command:
-          - srsue
-          - ue.conf
-          - --rf.device_name=zmq
-          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.srsran.svc.cluster.local:2000,id=ue,base_srate=23.04e6
+          - sh
+          - -c
+          - |
+            MME_ADDR=$(getent hosts srsepc.default.svc.cluster.local | awk '{ print $1 }')
+            echo "EPC IP Address: $MME_ADDR"
+            srsenb enb.conf \
+              --enb.mme_addr=$MME_ADDR \
+              --enb.gtp_bind_addr=0.0.0.0 \
+              --enb.s1c_bind_addr=0.0.0.0 \
+              --enb_files.sib_config=sib.conf \
+              --rf.device_name=zmq \
+              --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.default.svc.cluster.local:2001,id=enb,base_srate=23.04e6
         securityContext:
           capabilities:
             add:
-              - NET_ADMIN
               - SYS_NICE
-          privileged: true
-        volumeMounts:
-        - name: tun
-          mountPath: /dev/net/tun
         ports:
-        - containerPort: 2001
+        - containerPort: 2000
           name: zmq-tx
           protocol: TCP
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
-      volumes:
-      - name: tun
-        hostPath:
-          path: /dev/net/tun
-          type: CharDevice
       restartPolicy: Always
 
 ---
-# Service pour srsue
 apiVersion: v1
 kind: Service
 metadata:
   name: srsue
-  namespace: srsran
   labels:
     app: srsue
 spec:
@@ -234,4 +144,50 @@ spec:
       protocol: TCP
       port: 2001
       targetPort: 2001
-  type: ClusterIP
+  clusterIP: None
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srsue
+  labels:
+    app: srsue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: srsue
+  template:
+    metadata:
+      labels:
+        app: srsue
+    spec:
+      containers:
+      - name: srsue
+        image: srsran:latest
+        imagePullPolicy: Never
+        command:
+          - srsue
+          - ue.conf
+          - --rf.device_name=zmq
+          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.default.svc.cluster.local:2000,id=ue,base_srate=23.04e6
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_NICE
+        volumeMounts:
+        - name: tun
+          mountPath: /dev/net/tun
+        ports:
+        - containerPort: 2001
+          name: zmq-tx
+          protocol: TCP
+      volumes:
+      - name: tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+      restartPolicy: Always

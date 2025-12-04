@@ -2,12 +2,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: srsepc
-  namespace: srsran
+  labels:
+    app: srsepc
 spec:
   selector:
     app: srsepc
   ports:
-    - name: mme
+    - name: s1-mme
       protocol: TCP
       port: 36412
       targetPort: 36412
@@ -15,4 +16,4 @@ spec:
       protocol: UDP
       port: 2152
       targetPort: 2152
-  type: ClusterIP
+  clusterIP: None  # Headless service pour IP stable

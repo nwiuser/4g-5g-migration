@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: srsue
-  namespace: srsran
   labels:
     app: srsue
 spec:
@@ -23,13 +22,13 @@ spec:
           - srsue
           - ue.conf
           - --rf.device_name=zmq
-          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.srsran.svc.cluster.local:2000,id=ue,base_srate=23.04e6
+          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.default.svc.cluster.local:2000,id=ue,base_srate=23.04e6
         securityContext:
+          privileged: true
           capabilities:
             add:
               - NET_ADMIN
               - SYS_NICE
-          privileged: true
         volumeMounts:
         - name: tun
           mountPath: /dev/net/tun
