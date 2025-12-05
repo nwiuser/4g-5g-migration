@@ -41,8 +41,8 @@ spec:
     spec:
       containers:
       - name: srsepc
-        image: srsran-epc:latest
-        imagePullPolicy: Never
+        image: nouisser1/srsepc-4g:latest
+        imagePullPolicy: Always
         securityContext:
           privileged: true
           capabilities:
@@ -99,8 +99,8 @@ spec:
         command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 15; echo "EPC should be ready now"']
       containers:
       - name: srsenb
-        image: srsran-enb:latest
-        imagePullPolicy: Never
+        image: nouisser1/srsenb-4g:latest
+        imagePullPolicy: Always
         command:
           - sh
           - -c
@@ -160,8 +160,8 @@ spec:
     spec:
       containers:
       - name: srsue
-        image: srsran-ue:latest
-        imagePullPolicy: Never
+        image: nouisser1/srsue-4g:latest
+        imagePullPolicy: Always
         command:
           - srsue
           - ue.conf

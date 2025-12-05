@@ -23,7 +23,7 @@
 ```bash
 # Set variables
 RESOURCE_GROUP="rg-srsran-4g"
-LOCATION="eastus"
+LOCATION="francecentral"
 ACR_NAME="acrsrsran4g"  # Must be globally unique
 
 # Create resource group
