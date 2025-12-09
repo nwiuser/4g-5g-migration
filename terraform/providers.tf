@@ -7,6 +7,8 @@ terraform {
       version = "~> 3.0"
     }
   }
+  
+  # Trigger workflow
 
   # Décommenter pour utiliser Azure Storage Account comme backend
   # backend "azurerm" {
