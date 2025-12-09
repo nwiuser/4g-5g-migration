@@ -29,6 +29,7 @@ Thumbs.db
 .env.local
 local.tfvars
 dev.tfvars
+terraform.tfvars
 
 # Logs
 *.log
