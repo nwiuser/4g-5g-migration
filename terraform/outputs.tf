@@ -71,9 +71,11 @@ output "ue_nsg_name" {
 output "ssh_connection_core" {
   description = "SSH connection command for Core VM"
   value       = "ssh ${var.admin_username}@${azurerm_public_ip.core.ip_address}"
+  sensitive   = true
 }
 
 output "ssh_connection_ue" {
   description = "SSH connection command for UE VM"
   value       = "ssh ${var.admin_username}@${azurerm_public_ip.ue.ip_address}"
+  sensitive   = true
 }

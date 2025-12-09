@@ -137,6 +137,12 @@ variable "admin_username" {
   sensitive   = true
 }
 
+variable "ssh_public_key" {
+  description = "SSH public key for VM authentication"
+  type        = string
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)

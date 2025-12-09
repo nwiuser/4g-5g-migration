@@ -87,7 +87,7 @@ resource "azurerm_linux_virtual_machine" "core" {
 
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file("~/.ssh/id_rsa.pub")
+    public_key = var.ssh_public_key
   }
 
   network_interface_ids = [
@@ -132,7 +132,7 @@ resource "azurerm_linux_virtual_machine" "ue" {
 
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file("~/.ssh/id_rsa.pub")
+    public_key = var.ssh_public_key
   }
 
   network_interface_ids = [
