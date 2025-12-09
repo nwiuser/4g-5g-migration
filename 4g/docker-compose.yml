@@ -4,11 +4,6 @@ services:
   srsepc:
     container_name: virtual-srsepc
     image: nouisser1/srsepc-4g:latest
-    command:
-      - srsepc
-      - epc.conf
-      - --mme.mme_bind_addr=10.80.95.10
-      - --spgw.gtpu_bind_addr=10.80.95.10
     networks:
       corenet:
         ipv4_address: 10.80.95.10
@@ -21,15 +16,6 @@ services:
   srsenb:
     container_name: virtual-srsenb
     image: nouisser1/srsenb-4g:latest
-    command:
-      - srsenb
-      - enb.conf
-      - --enb.mme_addr=10.80.95.10
-      - --enb.gtp_bind_addr=10.80.95.11
-      - --enb.s1c_bind_addr=10.80.95.11
-      - --enb_files.sib_config=sib.conf
-      - --rf.device_name=zmq
-      - --rf.device_args=fail_on_disconnect=true,tx_port=tcp://10.80.97.11:2000,rx_port=tcp://10.80.97.10:2001,id=enb,base_srate=23.04e6
     networks:
       corenet:
         ipv4_address: 10.80.95.11
@@ -43,11 +29,6 @@ services:
   srsue:
     container_name: virtual-srsue
     image: nouisser1/srsue-4g:latest
-    command:
-      - srsue
-      - ue.conf
-      - --rf.device_name=zmq
-      - --rf.device_args=tx_port=tcp://10.80.97.10:2001,rx_port=tcp://10.80.97.11:2000,id=ue,base_srate=23.04e6
     cap_add:
       - NET_ADMIN
       - SYS_NICE

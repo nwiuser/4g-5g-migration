@@ -1,13 +1,32 @@
-# Déploiement complet de srsRAN sur Kubernetes
+# =============================================================================
+# Déploiement srsRAN 4G sur AKS - Équivalent docker-compose
+# Images: nouisser1/srsepc-4g, nouisser1/srsenb-4g, nouisser1/srsue-4g
+# Configuration réseau : corenet (10.80.95.0/24) et rfnet (10.80.97.0/24)
 # Appliquer avec: kubectl apply -f deploy-all.yaml
+# =============================================================================
 
 ---
+# Namespace dédié pour srsRAN
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: srsran
+  labels:
+    app.kubernetes.io/name: srsran
+    app.kubernetes.io/component: telecom
+
+---
+# =============================================================================
+# EPC (Evolved Packet Core) - Cœur du réseau 4G
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: srsepc
+  namespace: srsran
   labels:
     app: srsepc
+    component: core
 spec:
   selector:
     app: srsepc
@@ -27,8 +46,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: srsepc
+  namespace: srsran
   labels:
     app: srsepc
+    component: core
 spec:
   replicas: 1
   selector:
@@ -38,34 +59,61 @@ spec:
     metadata:
       labels:
         app: srsepc
+        component: core
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: srsepc
         image: nouisser1/srsepc-4g:latest
         imagePullPolicy: Always
         securityContext:
           privileged: true
-          capabilities:
-            add:
-              - NET_ADMIN
-              - SYS_NICE
+        ports:
+        - containerPort: 36412
+          name: s1-mme
+          protocol: TCP
+        - containerPort: 2152
+          name: gtpu
+          protocol: UDP
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
         volumeMounts:
         - name: tun
           mountPath: /dev/net/tun
+        - name: config
+          mountPath: /srsran/epc.conf
+          subPath: epc.conf
+        - name: config
+          mountPath: /root/.config/srsran/user_db.csv
+          subPath: user_db.csv
       volumes:
       - name: tun
         hostPath:
           path: /dev/net/tun
           type: CharDevice
+      - name: config
+        configMap:
+          name: srsepc-config
       restartPolicy: Always
 
 ---
+# =============================================================================
+# eNodeB (Base Station) - Station de base 4G
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: srsenb
+  namespace: srsran
   labels:
     app: srsenb
+    component: ran
 spec:
   selector:
     app: srsenb
@@ -81,8 +129,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: srsenb
+  namespace: srsran
   labels:
     app: srsenb
+    component: ran
 spec:
   replicas: 1
   selector:
@@ -92,28 +142,27 @@ spec:
     metadata:
       labels:
         app: srsenb
+        component: ran
     spec:
       initContainers:
       - name: wait-for-epc
-        image: busybox:1.35
-        command: ['sh', '-c', 'echo "Waiting for EPC to be ready..."; sleep 15; echo "EPC should be ready now"']
-      containers:
-      - name: srsenb
-        image: nouisser1/srsenb-4g:latest
-        imagePullPolicy: Always
+        image: busybox:1.36
         command:
           - sh
           - -c
           - |
-            MME_ADDR=$(getent hosts srsepc.default.svc.cluster.local | awk '{ print $1 }')
-            echo "EPC IP Address: $MME_ADDR"
-            srsenb enb.conf \
-              --enb.mme_addr=$MME_ADDR \
-              --enb.gtp_bind_addr=0.0.0.0 \
-              --enb.s1c_bind_addr=0.0.0.0 \
-              --enb_files.sib_config=sib.conf \
-              --rf.device_name=zmq \
-              --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://srsue.default.svc.cluster.local:2001,id=enb,base_srate=23.04e6
+            echo "Waiting for EPC service to be available..."
+            until nslookup srsepc.srsran.svc.cluster.local; do
+              echo "EPC not ready yet, waiting..."
+              sleep 5
+            done
+            echo "EPC DNS is ready, waiting additional 10s for service startup..."
+            sleep 10
+            echo "Proceeding with eNodeB startup"
+      containers:
+      - name: srsenb
+        image: nouisser1/srsenb-4g:latest
+        imagePullPolicy: Always
         securityContext:
           capabilities:
             add:
@@ -122,15 +171,44 @@ spec:
         - containerPort: 2000
           name: zmq-tx
           protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: config
+          mountPath: /srsran/enb.conf
+          subPath: enb.conf
+        - name: config
+          mountPath: /srsran/sib.conf
+          subPath: sib.conf
+        - name: config
+          mountPath: /srsran/rr.conf
+          subPath: rr.conf
+        - name: config
+          mountPath: /srsran/rb.conf
+          subPath: rb.conf
+      volumes:
+      - name: config
+        configMap:
+          name: srsenb-config
       restartPolicy: Always
 
 ---
+# =============================================================================
+# UE (User Equipment) - Terminal utilisateur 4G
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: srsue
+  namespace: srsran
   labels:
     app: srsue
+    component: ue
 spec:
   selector:
     app: srsue
@@ -146,8 +224,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: srsue
+  namespace: srsran
   labels:
     app: srsue
+    component: ue
 spec:
   replicas: 1
   selector:
@@ -157,32 +237,56 @@ spec:
     metadata:
       labels:
         app: srsue
+        component: ue
     spec:
+      initContainers:
+      - name: wait-for-enb
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for eNodeB service to be available..."
+            until nslookup srsenb.srsran.svc.cluster.local; do
+              echo "eNodeB not ready yet, waiting..."
+              sleep 5
+            done
+            echo "eNodeB DNS is ready, waiting additional 15s for service startup..."
+            sleep 15
+            echo "Proceeding with UE startup"
       containers:
       - name: srsue
         image: nouisser1/srsue-4g:latest
         imagePullPolicy: Always
-        command:
-          - srsue
-          - ue.conf
-          - --rf.device_name=zmq
-          - --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://srsenb.default.svc.cluster.local:2000,id=ue,base_srate=23.04e6
         securityContext:
           privileged: true
           capabilities:
             add:
               - NET_ADMIN
               - SYS_NICE
-        volumeMounts:
-        - name: tun
-          mountPath: /dev/net/tun
         ports:
         - containerPort: 2001
           name: zmq-tx
           protocol: TCP
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: tun
+          mountPath: /dev/net/tun
+        - name: config
+          mountPath: /srsran/ue.conf
+          subPath: ue.conf
       volumes:
       - name: tun
         hostPath:
           path: /dev/net/tun
           type: CharDevice
+      - name: config
+        configMap:
+          name: srsue-config
       restartPolicy: Always

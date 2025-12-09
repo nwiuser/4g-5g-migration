@@ -7,8 +7,7 @@
 # Image de base pour srsepc (EPC - Evolved Packet Core)
 # -----------------------------------------------------------------------------
 FROM nouisser1/srsepc-4g:latest AS srsepc
-
-# Entrypoint avec buffer de ligne pour logs en temps réel
+RUN apt-get update && apt-get install -y libsctp1 lksctp-tools
 ENTRYPOINT [ "stdbuf", "-o", "L" ]
 
 # -----------------------------------------------------------------------------

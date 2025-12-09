@@ -1,0 +1,61 @@
+---
+# DaemonSet pour charger le module kernel SCTP sur tous les nodes AKS
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sctp-module-loader
+  namespace: kube-system
+  labels:
+    app: sctp-loader
+spec:
+  selector:
+    matchLabels:
+      app: sctp-loader
+  template:
+    metadata:
+      labels:
+        app: sctp-loader
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      containers:
+      - name: sctp-loader
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - |
+            echo "Loading SCTP kernel module..."
+            nsenter --target 1 --mount --uts --ipc --net --pid -- bash -c '
+              if lsmod | grep -q sctp; then
+                echo "SCTP module already loaded"
+              else
+                echo "Loading SCTP module..."
+                modprobe sctp
+                if [ $? -eq 0 ]; then
+                  echo "SCTP module loaded successfully"
+                else
+                  echo "Failed to load SCTP module"
+                  exit 1
+                fi
+              fi
+              
+              # Vérification
+              lsmod | grep sctp
+              
+              # Garder le pod en vie
+              echo "SCTP module is active. Keeping pod alive..."
+              tail -f /dev/null
+            '
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+      tolerations:
+      - operator: Exists

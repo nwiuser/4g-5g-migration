@@ -1,0 +1,42 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+.env
+.env.local
+local.tfvars
+dev.tfvars
+
+# Logs
+*.log
+
+# Artifacts
+tfplan
+tfplan.txt
+outputs.json
+
+# GitHub Actions
+.gh-token
