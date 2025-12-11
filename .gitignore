@@ -1,5 +1,2 @@
 .vscode/
 terraform/terraform.tfvars
-terraform/*.tfvars
-**/.terraform/*
-terraform.tfstate*
