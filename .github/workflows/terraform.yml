@@ -101,7 +101,7 @@ jobs:
           echo "Retrieving secrets from Azure Key Vault..."
           
           # Retrieve secrets from Key Vault (replace 'your-keyvault-name' with your actual Key Vault name)
-          KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          KEYVAULT_NAME="keyvault4g"
           
           # Get SSH public key
           SSH_PUBLIC_KEY=$(az keyvault secret show --name "ssh-public-key" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
