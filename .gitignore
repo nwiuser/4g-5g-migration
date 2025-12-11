@@ -1,2 +1,2 @@
 .vscode/
-*.tfvars
+terraform/terraform.tfvars
