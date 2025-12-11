@@ -95,6 +95,24 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Retrieve secrets from Azure Key Vault
+        id: keyvault
+        run: |
+          echo "Retrieving secrets from Azure Key Vault..."
+          
+          # Retrieve secrets from Key Vault (replace 'your-keyvault-name' with your actual Key Vault name)
+          KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          
+          # Get SSH public key
+          SSH_PUBLIC_KEY=$(az keyvault secret show --name "ssh-public-key" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
+          echo "::add-mask::$SSH_PUBLIC_KEY"
+          echo "ssh_public_key=$SSH_PUBLIC_KEY" >> $GITHUB_OUTPUT
+          
+          # Optional: Get additional secrets if needed
+          # CLIENT_SECRET=$(az keyvault secret show --name "azure-client-secret" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
+          # echo "::add-mask::$CLIENT_SECRET"
+          # echo "client_secret=$CLIENT_SECRET" >> $GITHUB_OUTPUT
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -106,7 +124,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_ssh_public_key: ${{ secrets.AZURE_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key: ${{ steps.keyvault.outputs.ssh_public_key }}
         run: terraform init
 
       - name: Terraform Plan
@@ -115,7 +133,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_ssh_public_key: ${{ secrets.AZURE_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key: ${{ steps.keyvault.outputs.ssh_public_key }}
         run: terraform plan -out=tfplan
 
   # plan:
@@ -222,6 +240,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve secrets from Azure Key Vault
+        id: keyvault
+        run: |
+          echo "Retrieving secrets from Azure Key Vault..."
+          KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          
+          # Get SSH public key
+          SSH_PUBLIC_KEY=$(az keyvault secret show --name "ssh-public-key" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
+          echo "::add-mask::$SSH_PUBLIC_KEY"
+          echo "ssh_public_key=$SSH_PUBLIC_KEY" >> $GITHUB_OUTPUT
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -236,34 +272,26 @@ jobs:
       - name: Terraform Init
         run: terraform init
         env:
+          ARM_USE_OIDC: true
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-          TF_VAR_azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          TF_VAR_ssh_public_key: ${{ secrets.AZURE_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key: ${{ steps.keyvault.outputs.ssh_public_key }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
         env:
+          ARM_USE_OIDC: true
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-          TF_VAR_azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          TF_VAR_ssh_public_key: ${{ secrets.AZURE_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key: ${{ steps.keyvault.outputs.ssh_public_key }}
 
       - name: Get Terraform Outputs
         run: terraform output -json > outputs.json
         env:
+          ARM_USE_OIDC: true
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
@@ -316,6 +344,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve secrets from Azure Key Vault
+        id: keyvault
+        run: |
+          echo "Retrieving secrets from Azure Key Vault..."
+          KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
+          
+          # Get SSH private key for VM access
+          SSH_PRIVATE_KEY=$(az keyvault secret show --name "ssh-private-key" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
+          echo "::add-mask::$SSH_PRIVATE_KEY"
+          echo "ssh_private_key=$SSH_PRIVATE_KEY" >> $GITHUB_OUTPUT
+
       - name: Download Terraform Outputs
         uses: actions/download-artifact@v4
         with:
@@ -332,7 +378,7 @@ jobs:
       - name: Deploy containers on Core VM
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.AZURE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ steps.keyvault.outputs.ssh_private_key }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
           ssh-keyscan -H ${{ steps.ips.outputs.core_ip }} >> ~/.ssh/known_hosts
