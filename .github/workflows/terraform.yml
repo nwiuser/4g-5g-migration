@@ -356,7 +356,6 @@ jobs:
         run: |
           echo "Retrieving secrets from Azure Key Vault..."
           KEYVAULT_NAME="${{ secrets.AZURE_KEYVAULT_NAME }}"
-          
           # Get SSH private key for VM access
           SSH_PRIVATE_KEY=$(az keyvault secret show --name "ssh-private-key" --vault-name "$KEYVAULT_NAME" --query "value" -o tsv)
           echo "::add-mask::$SSH_PRIVATE_KEY"
