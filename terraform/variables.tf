@@ -17,11 +17,12 @@ variable "azure_client_id" {
   sensitive   = true
 }
 
-variable "azure_client_secret" {
-  description = "Azure Service Principal Client Secret"
-  type        = string
-  sensitive   = true
-}
+# Note: client_secret is not needed when using OIDC authentication
+# variable "azure_client_secret" {
+#   description = "Azure Service Principal Client Secret"
+#   type        = string
+#   sensitive   = true
+# }
 
 # Infrastructure Variables
 variable "environment" {
