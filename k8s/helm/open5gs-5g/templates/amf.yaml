@@ -84,8 +84,6 @@ spec:
       labels:
         {{- include "open5gs-5g.selectorLabels" . | nindent 8 }}
         component: amf
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/amf.yaml") . | sha256sum }}
     spec:
       containers:
       - name: amf
