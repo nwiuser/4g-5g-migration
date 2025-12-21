@@ -1,0 +1,415 @@
+name: Kubernetes Integration Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/k8s-integration.yml'
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - 'k8s/**'
+  workflow_dispatch:
+
+env:
+  KIND_VERSION: v0.20.0
+  KUBECTL_VERSION: v1.28.0
+  HELM_VERSION: v3.13.0
+
+jobs:
+  lint-manifests:
+    name: Lint Kubernetes Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubeval
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo cp kubeval /usr/local/bin
+
+      - name: Validate YAML files
+        run: |
+          find k8s/manifests -name '*.yaml' -exec kubeval --strict {} \;
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML syntax
+        run: |
+          yamllint -c .yamllint k8s/ || true
+
+  lint-helm-charts:
+    name: Lint Helm Charts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Lint 4G Helm Chart
+        run: |
+          helm lint k8s/helm/open5gs-4g
+          helm lint k8s/helm/open5gs-4g --values k8s/values/dev.yaml
+
+      - name: Lint 5G Helm Chart
+        run: |
+          helm lint k8s/helm/open5gs-5g
+          helm lint k8s/helm/open5gs-5g --values k8s/values/dev.yaml
+
+      - name: Template 4G Chart
+        run: |
+          helm template open5gs-4g k8s/helm/open5gs-4g \
+            --values k8s/values/dev.yaml \
+            --namespace 4g-core
+
+      - name: Template 5G Chart
+        run: |
+          helm template open5gs-5g k8s/helm/open5gs-5g \
+            --values k8s/values/dev.yaml \
+            --namespace 5g-core
+
+  deploy-test-4g:
+    name: Deploy and Test 4G Core
+    runs-on: ubuntu-latest
+    needs: [lint-manifests, lint-helm-charts]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/${{ env.KIND_VERSION }}/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Create kind cluster
+        run: |
+          kind create cluster --name open5gs-test --config - <<EOF
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            kubeadmConfigPatches:
+            - |
+              kind: InitConfiguration
+              nodeRegistration:
+                kubeletExtraArgs:
+                  node-labels: "ingress-ready=true"
+            extraPortMappings:
+            - containerPort: 30999
+              hostPort: 30999
+              protocol: TCP
+          - role: worker
+          - role: worker
+          EOF
+
+      - name: Wait for cluster ready
+        run: |
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+      - name: Deploy namespaces
+        run: |
+          kubectl apply -f k8s/manifests/namespaces/namespaces.yaml
+          kubectl get namespaces
+
+      - name: Deploy MongoDB
+        run: |
+          kubectl apply -f k8s/manifests/shared/mongodb.yaml
+          kubectl wait --for=condition=ready pod -l app=mongodb -n shared-services --timeout=300s
+
+      - name: Deploy DNS
+        run: |
+          kubectl apply -f k8s/manifests/shared/dns.yaml
+          kubectl wait --for=condition=ready pod -l app=dns -n shared-services --timeout=300s
+
+      - name: Deploy 4G Core with Helm
+        run: |
+          helm install open5gs-4g k8s/helm/open5gs-4g \
+            --namespace 4g-core \
+            --values k8s/values/dev.yaml \
+            --wait --timeout 10m
+
+      - name: Wait for 4G pods ready
+        run: |
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=open5gs-4g -n 4g-core --timeout=300s
+
+      - name: Check 4G deployments
+        run: |
+          kubectl get all -n 4g-core
+          kubectl get pods -n 4g-core -o wide
+
+      - name: Test MME connectivity
+        run: |
+          kubectl run test-mme --image=nicolaka/netshoot -n 4g-core --rm -i --restart=Never -- \
+            nc -zv mme 36412
+
+      - name: Test WebUI access
+        run: |
+          kubectl run test-webui --image=curlimages/curl -n 4g-core --rm -i --restart=Never -- \
+            curl -f http://webui:9999 || echo "WebUI not accessible yet"
+
+      - name: Export logs on failure
+        if: failure()
+        run: |
+          echo "=== 4G Core Pods ==="
+          kubectl get pods -n 4g-core
+          echo "=== MME Logs ==="
+          kubectl logs -l app=mme -n 4g-core --tail=100 || true
+          echo "=== WebUI Logs ==="
+          kubectl logs -l app=webui -n 4g-core --tail=100 || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          kind delete cluster --name open5gs-test
+
+  deploy-test-5g:
+    name: Deploy and Test 5G Core
+    runs-on: ubuntu-latest
+    needs: [lint-manifests, lint-helm-charts]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/${{ env.KIND_VERSION }}/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Create kind cluster
+        run: |
+          kind create cluster --name open5gs-5g-test --config - <<EOF
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          EOF
+
+      - name: Wait for cluster ready
+        run: |
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+      - name: Deploy namespaces
+        run: |
+          kubectl apply -f k8s/manifests/namespaces/namespaces.yaml
+
+      - name: Deploy shared services
+        run: |
+          kubectl apply -f k8s/manifests/shared/
+          kubectl wait --for=condition=ready pod -l app=mongodb -n shared-services --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=dns -n shared-services --timeout=300s
+
+      - name: Deploy 5G Core with Helm
+        run: |
+          helm install open5gs-5g k8s/helm/open5gs-5g \
+            --namespace 5g-core \
+            --values k8s/values/dev.yaml \
+            --wait --timeout 10m
+
+      - name: Wait for 5G pods ready
+        run: |
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=open5gs-5g -n 5g-core --timeout=300s
+
+      - name: Check 5G deployments
+        run: |
+          kubectl get all -n 5g-core
+          kubectl get pods -n 5g-core -o wide
+
+      - name: Test AMF connectivity
+        run: |
+          kubectl run test-amf --image=nicolaka/netshoot -n 5g-core --rm -i --restart=Never -- \
+            nc -zv amf 38412
+
+      - name: Export logs on failure
+        if: failure()
+        run: |
+          echo "=== 5G Core Pods ==="
+          kubectl get pods -n 5g-core
+          echo "=== AMF Logs ==="
+          kubectl logs -l app=amf -n 5g-core --tail=100 || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          kind delete cluster --name open5gs-5g-test
+
+  full-integration-test:
+    name: Full 4G+5G Integration Test
+    runs-on: ubuntu-latest
+    needs: [deploy-test-4g, deploy-test-5g]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/${{ env.KIND_VERSION }}/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/${{ env.KUBECTL_VERSION }}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Create kind cluster with extra resources
+        run: |
+          kind create cluster --name open5gs-full --config - <<EOF
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            extraPortMappings:
+            - containerPort: 30999
+              hostPort: 30999
+          - role: worker
+          - role: worker
+          - role: worker
+          EOF
+
+      - name: Deploy full stack
+        run: |
+          # Namespaces
+          kubectl apply -f k8s/manifests/namespaces/namespaces.yaml
+          
+          # Shared services
+          kubectl apply -f k8s/manifests/shared/
+          kubectl wait --for=condition=ready pod -l app=mongodb -n shared-services --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=dns -n shared-services --timeout=300s
+          
+          # 4G Core
+          helm install open5gs-4g k8s/helm/open5gs-4g \
+            --namespace 4g-core \
+            --values k8s/values/dev.yaml \
+            --wait --timeout 10m
+          
+          # 5G Core
+          helm install open5gs-5g k8s/helm/open5gs-5g \
+            --namespace 5g-core \
+            --values k8s/values/dev.yaml \
+            --set interworking.enabled=true \
+            --wait --timeout 10m
+
+      - name: Run validation tests
+        run: |
+          chmod +x k8s/scripts/validate-deployment.sh
+          ./k8s/scripts/validate-deployment.sh
+
+      - name: Test DNS resolution
+        run: |
+          kubectl run test-dns --image=nicolaka/netshoot -n shared-services --rm -i --restart=Never -- \
+            nslookup mme.epc.mnc001.mcc001.3gppnetwork.org 10.45.0.10
+
+      - name: Test MongoDB connection
+        run: |
+          kubectl run test-mongo --image=mongo:6.0 -n shared-services --rm -i --restart=Never -- \
+            mongosh --host mongodb.shared-services --eval "db.adminCommand('ping')"
+
+      - name: Test 4G-5G interworking
+        run: |
+          # Test if AMF can reach MME (N26 interface)
+          kubectl run test-n26 --image=nicolaka/netshoot -n 5g-core --rm -i --restart=Never -- \
+            nc -zv mme.4g-core 36412
+
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "# Kubernetes Integration Test Report" > test-report.md
+          echo "" >> test-report.md
+          echo "## Cluster Info" >> test-report.md
+          kubectl cluster-info >> test-report.md
+          echo "" >> test-report.md
+          echo "## Nodes" >> test-report.md
+          kubectl get nodes >> test-report.md
+          echo "" >> test-report.md
+          echo "## All Pods" >> test-report.md
+          kubectl get pods --all-namespaces >> test-report.md
+          echo "" >> test-report.md
+          echo "## Helm Releases" >> test-report.md
+          helm list --all-namespaces >> test-report.md
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-integration-test-report
+          path: test-report.md
+
+      - name: Export logs on failure
+        if: failure()
+        run: |
+          mkdir -p logs
+          kubectl logs -l app=mme -n 4g-core --tail=200 > logs/mme.log || true
+          kubectl logs -l app=amf -n 5g-core --tail=200 > logs/amf.log || true
+          kubectl logs -l app=mongodb -n shared-services --tail=200 > logs/mongodb.log || true
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pod-logs
+          path: logs/
+
+      - name: Cleanup
+        if: always()
+        run: |
+          kind delete cluster --name open5gs-full
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'k8s/'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'

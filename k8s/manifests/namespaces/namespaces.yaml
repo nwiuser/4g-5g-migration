@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 4g-core
+  labels:
+    name: 4g-core
+    network-type: 4g-epc
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 5g-core
+  labels:
+    name: 5g-core
+    network-type: 5g-sa
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ims
+  labels:
+    name: ims
+    network-type: ims-volte-vonr
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    purpose: observability
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared-services
+  labels:
+    name: shared-services
+    purpose: common-infrastructure

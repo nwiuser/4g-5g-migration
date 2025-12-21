@@ -1,0 +1,108 @@
+{{- if .Values.webui.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "open5gs-4g.fullname" . }}-webui
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: webui
+spec:
+  replicas: {{ .Values.webui.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "open5gs-4g.selectorLabels" . | nindent 6 }}
+      component: webui
+  template:
+    metadata:
+      labels:
+        {{- include "open5gs-4g.selectorLabels" . | nindent 8 }}
+        component: webui
+    spec:
+      containers:
+      - name: webui
+        image: "{{ .Values.webui.image.repository }}:{{ .Values.webui.image.tag }}"
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: COMPONENT_NAME
+          value: "webui"
+        - name: MONGODB_HOST
+          value: {{ .Values.global.mongodb.host }}
+        - name: MONGODB_PORT
+          value: {{ .Values.global.mongodb.port | quote }}
+        ports:
+        - name: http
+          containerPort: 9999
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.webui.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webui
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: webui
+spec:
+  type: {{ .Values.webui.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.webui.service.port }}
+    targetPort: http
+    {{- if and (eq .Values.webui.service.type "NodePort") .Values.webui.service.nodePort }}
+    nodePort: {{ .Values.webui.service.nodePort }}
+    {{- end }}
+    protocol: TCP
+  selector:
+    {{- include "open5gs-4g.selectorLabels" . | nindent 4 }}
+    component: webui
+
+{{- if .Values.webui.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "open5gs-4g.fullname" . }}-webui
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: webui
+  {{- with .Values.webui.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.webui.ingress.className }}
+  rules:
+  {{- range .Values.webui.ingress.hosts }}
+  - host: {{ .host | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: webui
+            port:
+              number: 9999
+      {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

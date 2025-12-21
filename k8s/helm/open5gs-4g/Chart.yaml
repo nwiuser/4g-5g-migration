@@ -1,0 +1,18 @@
+apiVersion: v2
+name: open5gs-4g
+description: Helm chart for Open5GS 4G EPC Core Network
+type: application
+version: 1.0.0
+appVersion: "v2.7.0"
+keywords:
+  - 4g
+  - epc
+  - lte
+  - mobile-core
+  - telecom
+maintainers:
+  - name: migration-4g-5g-team
+home: https://github.com/open5gs/open5gs
+sources:
+  - https://github.com/open5gs/open5gs
+dependencies: []

@@ -1,0 +1,332 @@
+# Default values for open5gs-5g
+# This is a YAML-formatted file.
+
+## Global configuration
+global:
+  namespace: 5g-core
+  imageRegistry: docker.io
+  imagePullPolicy: IfNotPresent
+  
+  # Network configuration
+  network:
+    plmnId:
+      mcc: "001"
+      mnc: "01"
+    tac: 1
+    
+  # MongoDB connection
+  mongodb:
+    enabled: true
+    host: mongodb.shared-services.svc.cluster.local
+    port: 27017
+    database: open5gs
+    username: admin
+    passwordSecret: mongodb-secret
+    
+  # DNS server
+  dns:
+    enabled: true
+    server: dns.shared-services.svc.cluster.local
+
+## Interworking with 4G (N26 interface)
+interworking:
+  enabled: false
+  mmeAddress: mme.4g-core.svc.cluster.local
+
+## Network Slicing Configuration
+slicing:
+  enabled: true
+  slices:
+    - sst: 1  # eMBB (Enhanced Mobile Broadband)
+      sd: "000001"
+      dnn: internet
+    - sst: 2  # URLLC (Ultra-Reliable Low Latency)
+      sd: "000002"
+      dnn: urllc
+    - sst: 3  # mMTC (Massive Machine Type Communications)
+      sd: "000003"
+      dnn: mmtc
+
+## NRF Configuration (Network Repository Function)
+nrf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+## SCP Configuration (Service Communication Proxy)
+scp:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+
+## AMF Configuration (Access and Mobility Management Function)
+amf:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    ngapPort: 38412
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "300m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  config:
+    ngap:
+      - addr: 0.0.0.0
+    metrics:
+      - addr: 0.0.0.0
+        port: 9090
+    guami:
+      - plmn_id:
+          mcc: "001"
+          mnc: "01"
+        amf_id:
+          region: 2
+          set: 1
+
+## SMF Configuration (Session Management Function)
+smf:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+    gtpcPort: 2123
+    gtpuPort: 2152
+    pfcpPort: 8805
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "300m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  config:
+    pfcp:
+      - addr: 10.46.0.3
+    gtpc:
+      - addr: 10.46.0.3
+    gtpu:
+      - addr: 10.46.0.3
+    subnet:
+      - dnn: internet
+        cidr: 10.50.0.0/16
+      - dnn: urllc
+        cidr: 10.51.0.0/16
+      - dnn: mmtc
+        cidr: 10.52.0.0/16
+    metrics:
+      - addr: 0.0.0.0
+        port: 9090
+
+## UPF Configuration (User Plane Function)
+upf:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    pfcpPort: 8805
+    gtpuPort: 2152
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  config:
+    pfcp:
+      - addr: 10.46.0.4
+    gtpu:
+      - addr: 10.46.0.4
+    subnet:
+      - dnn: internet
+        cidr: 10.50.0.0/16
+      - dnn: urllc
+        cidr: 10.51.0.0/16
+      - dnn: mmtc
+        cidr: 10.52.0.0/16
+    metrics:
+      - addr: 0.0.0.0
+        port: 9090
+
+## AUSF Configuration (Authentication Server Function)
+ausf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+## UDM Configuration (Unified Data Management)
+udm:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+
+## UDR Configuration (Unified Data Repository)
+udr:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+
+## PCF Configuration (Policy Control Function)
+pcf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+
+## NSSF Configuration (Network Slice Selection Function)
+nssf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+## BSF Configuration (Binding Support Function)
+bsf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    sbiPort: 7777
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+## WebUI Configuration
+webui:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: NodePort
+    port: 9999
+    nodePort: 31999
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: webui-5g.local
+        paths:
+          - path: /
+            pathType: Prefix
+
+## Metrics and Monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+## Auto-scaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

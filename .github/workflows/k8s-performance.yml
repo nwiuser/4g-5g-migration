@@ -1,0 +1,78 @@
+name: Kubernetes Performance Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 2 AM
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl & Helm
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Create cluster
+        run: |
+          kind create cluster --name perf-test
+
+      - name: Deploy Open5GS
+        run: |
+          kubectl apply -f k8s/manifests/namespaces/namespaces.yaml
+          kubectl apply -f k8s/manifests/shared/
+          kubectl wait --for=condition=ready pod -l app=mongodb -n shared-services --timeout=300s
+          helm install open5gs-5g k8s/helm/open5gs-5g -n 5g-core --values k8s/values/dev.yaml --wait
+
+      - name: Install k6 for load testing
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run WebUI load test
+        run: |
+          kubectl port-forward svc/webui 9999:9999 -n 4g-core &
+          sleep 5
+          cat > load-test.js <<'EOF'
+          import http from 'k6/http';
+          import { check } from 'k6';
+
+          export let options = {
+            stages: [
+              { duration: '30s', target: 10 },
+              { duration: '1m', target: 50 },
+              { duration: '30s', target: 0 },
+            ],
+          };
+
+          export default function () {
+            let res = http.get('http://localhost:9999');
+            check(res, { 'status is 200': (r) => r.status === 200 });
+          }
+          EOF
+          k6 run load-test.js
+
+      - name: Measure resource usage
+        run: |
+          kubectl top nodes
+          kubectl top pods -n 5g-core
+          kubectl top pods -n shared-services
+
+      - name: Cleanup
+        if: always()
+        run: kind delete cluster --name perf-test

@@ -1,0 +1,148 @@
+{{- if .Values.mme.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "open5gs-4g.fullname" . }}-mme-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: mme
+data:
+  mme.yaml: |
+    logger:
+      level: info
+
+    mme:
+      freeDiameter: /mnt/mme/mme.conf
+      s1ap:
+      {{- range .Values.mme.config.s1ap }}
+        - addr: {{ .addr }}
+      {{- end }}
+      gtpc:
+      {{- range .Values.mme.config.gtpc }}
+        - addr: {{ .addr }}
+      {{- end }}
+      metrics:
+      {{- range .Values.mme.config.metrics }}
+        - addr: {{ .addr }}
+          port: {{ .port }}
+      {{- end }}
+      gummei:
+        plmn_id:
+          mcc: {{ .Values.global.network.plmnId.mcc | quote }}
+          mnc: {{ .Values.global.network.plmnId.mnc | quote }}
+        mme_gid: 2
+        mme_code: 1
+      tai:
+        plmn_id:
+          mcc: {{ .Values.global.network.plmnId.mcc | quote }}
+          mnc: {{ .Values.global.network.plmnId.mnc | quote }}
+        tac: {{ .Values.global.network.tac }}
+      security:
+        integrity_order: [EIA2, EIA1, EIA0]
+        ciphering_order: [EEA0, EEA1, EEA2]
+      network_name:
+        full: Open5GS
+        short: Next
+
+    sgwc:
+      gtpc:
+        - addr: sgwc.{{ .Values.global.namespace }}.svc.cluster.local
+
+    smf:
+      gtpc:
+        - addr: smf.{{ .Values.global.namespace }}.svc.cluster.local
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "open5gs-4g.fullname" . }}-mme
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: mme
+spec:
+  replicas: {{ .Values.mme.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "open5gs-4g.selectorLabels" . | nindent 6 }}
+      component: mme
+  template:
+    metadata:
+      labels:
+        {{- include "open5gs-4g.selectorLabels" . | nindent 8 }}
+        component: mme
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/mme-configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+      - name: mme
+        image: "{{ .Values.mme.image.repository }}:{{ .Values.mme.image.tag }}"
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        env:
+        - name: COMPONENT_NAME
+          value: "mme"
+        - name: MONGODB_HOST
+          value: {{ .Values.global.mongodb.host }}
+        - name: MONGODB_PORT
+          value: {{ .Values.global.mongodb.port | quote }}
+        ports:
+        - name: s1ap
+          containerPort: {{ .Values.mme.service.s1apPort }}
+          protocol: SCTP
+        - name: gtpc
+          containerPort: {{ .Values.mme.service.gtpcPort }}
+          protocol: UDP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        volumeMounts:
+        - name: mme-config
+          mountPath: /mnt/mme
+        resources:
+          {{- toYaml .Values.mme.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: metrics
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: metrics
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: mme-config
+        configMap:
+          name: {{ include "open5gs-4g.fullname" . }}-mme-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mme
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "open5gs-4g.labels" . | nindent 4 }}
+    component: mme
+spec:
+  type: {{ .Values.mme.service.type }}
+  ports:
+  - name: s1ap
+    port: {{ .Values.mme.service.s1apPort }}
+    targetPort: s1ap
+    protocol: SCTP
+  - name: gtpc
+    port: {{ .Values.mme.service.gtpcPort }}
+    targetPort: gtpc
+    protocol: UDP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    {{- include "open5gs-4g.selectorLabels" . | nindent 4 }}
+    component: mme
+{{- end }}

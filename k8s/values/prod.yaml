@@ -1,0 +1,147 @@
+# Configuration pour l'environnement de production
+
+## Haute disponibilité et performance
+global:
+  environment: prod
+
+## 4G Core - Haute disponibilité
+open5gs-4g:
+  mme:
+    replicaCount: 3
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+  hss:
+    replicaCount: 2
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "300m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+  sgwc:
+    replicaCount: 2
+  sgwu:
+    replicaCount: 3
+  smf:
+    replicaCount: 3
+  upf:
+    replicaCount: 4
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "8Gi"
+        cpu: "4000m"
+
+## 5G Core - Haute disponibilité
+open5gs-5g:
+  nrf:
+    replicaCount: 2
+  amf:
+    replicaCount: 3
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  smf:
+    replicaCount: 4
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  upf:
+    replicaCount: 5
+    resources:
+      requests:
+        memory: "4Gi"
+        cpu: "2000m"
+      limits:
+        memory: "16Gi"
+        cpu: "8000m"
+  ausf:
+    replicaCount: 2
+  udm:
+    replicaCount: 2
+  udr:
+    replicaCount: 2
+  pcf:
+    replicaCount: 2
+  nssf:
+    replicaCount: 2
+  bsf:
+    replicaCount: 2
+  
+  # Network Slicing - Configuration complète
+  slicing:
+    enabled: true
+    slices:
+      - sst: 1  # eMBB (Enhanced Mobile Broadband)
+        sd: "000001"
+        dnn: internet
+      - sst: 2  # URLLC (Ultra-Reliable Low Latency)
+        sd: "000002"
+        dnn: urllc
+      - sst: 3  # mMTC (Massive Machine Type Communications)
+        sd: "000003"
+        dnn: mmtc
+  
+  # Auto-scaling activé
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
+
+## Monitoring - Configuration production
+monitoring:
+  prometheus:
+    retention: 30d
+    storageSize: 100Gi
+    replicaCount: 2
+  grafana:
+    persistence:
+      enabled: true
+      size: 20Gi
+    replicaCount: 2
+  alertmanager:
+    enabled: true
+    replicaCount: 2
+
+## Logging - Production
+logging:
+  level: info
+  retention: 30d
+  elasticsearch:
+    replicaCount: 3
+    storageSize: 200Gi
+
+## Security
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicies:
+    enabled: true
+  tls:
+    enabled: true
+  rbac:
+    enabled: true
+
+## Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30

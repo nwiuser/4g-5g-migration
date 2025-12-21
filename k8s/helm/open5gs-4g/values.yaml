@@ -1,0 +1,242 @@
+# Default values for open5gs-4g
+# This is a YAML-formatted file.
+
+## Global configuration
+global:
+  namespace: 4g-core
+  imageRegistry: docker.io
+  imagePullPolicy: IfNotPresent
+  
+  # Network configuration
+  network:
+    plmnId:
+      mcc: "001"
+      mnc: "01"
+    tac: 7
+    
+  # MongoDB connection
+  mongodb:
+    enabled: true
+    host: mongodb.shared-services.svc.cluster.local
+    port: 27017
+    database: open5gs
+    username: admin
+    passwordSecret: mongodb-secret
+    
+  # DNS server
+  dns:
+    enabled: true
+    server: dns.shared-services.svc.cluster.local
+
+## Interworking with 5G (N26 interface)
+interworking:
+  enabled: false
+  amfAddress: amf.5g-core.svc.cluster.local
+
+## MME Configuration
+mme:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    s1apPort: 36412
+    gtpcPort: 2123
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  config:
+    # S1AP configuration
+    s1ap:
+      - addr: 0.0.0.0
+    # GTPv2-C configuration
+    gtpc:
+      - addr: 10.45.0.2
+    # Metrics
+    metrics:
+      - addr: 0.0.0.0
+        port: 9090
+
+## HSS Configuration
+hss:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    diameterPort: 3868
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  config:
+    diameter:
+      - addr: 10.45.0.3
+        port: 3868
+
+## PCRF Configuration
+pcrf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    diameterPort: 3868
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+
+## SGWC Configuration
+sgwc:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    gtpcPort: 2123
+    pfcpPort: 8805
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "150m"
+    limits:
+      memory: "512Mi"
+      cpu: "400m"
+  config:
+    gtpc:
+      - addr: 10.45.0.5
+    pfcp:
+      - addr: 10.45.0.5
+
+## SGWU Configuration
+sgwu:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    gtpuPort: 2152
+    pfcpPort: 8805
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "300m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  config:
+    gtpu:
+      - addr: 10.45.0.6
+    pfcp:
+      - addr: 10.45.0.6
+
+## SMF Configuration (PGW-C function)
+smf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    gtpcPort: 2123
+    pfcpPort: 8805
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  config:
+    gtpc:
+      - addr: 10.45.0.7
+    pfcp:
+      - addr: 10.45.0.7
+    # Subnet configuration
+    subnet:
+      - addr: 10.45.0.1/16
+        dnn: internet
+
+## UPF Configuration (PGW-U function)
+upf:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: ClusterIP
+    gtpuPort: 2152
+    pfcpPort: 8805
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  config:
+    gtpu:
+      - addr: 10.45.0.8
+    pfcp:
+      - addr: 10.45.0.8
+    subnet:
+      - addr: 10.45.0.1/16
+        dnn: internet
+
+## WebUI Configuration
+webui:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: docker_open5gs
+    tag: latest
+  service:
+    type: NodePort
+    port: 9999
+    nodePort: 30999
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: webui-4g.local
+        paths:
+          - path: /
+            pathType: Prefix
+
+## Metrics and Monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
