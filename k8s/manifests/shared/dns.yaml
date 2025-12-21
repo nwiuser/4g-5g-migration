@@ -41,7 +41,7 @@ data:
                 60 ) ; Minimum TTL
         IN  NS  ns.epc.mnc001.mcc001.3gppnetwork.org.
     
-    ns              IN  A   10.45.0.10
+    ns              IN  A   10.96.0.10
     mme             IN  A   10.45.0.2
     hss             IN  A   10.45.0.3
     pcrf            IN  A   10.45.0.4
@@ -60,7 +60,7 @@ data:
                 60 ) ; Minimum TTL
         IN  NS  ns.ims.mnc001.mcc001.3gppnetwork.org.
     
-    ns              IN  A   10.45.0.10
+    ns              IN  A   10.96.0.10
     pcscf           IN  A   10.45.0.20
     icscf           IN  A   10.45.0.21
     scscf           IN  A   10.45.0.22
@@ -75,7 +75,7 @@ data:
                 60 ) ; Minimum TTL
         IN  NS  ns.5gc.mnc001.mcc001.3gppnetwork.org.
     
-    ns              IN  A   10.45.0.10
+    ns              IN  A   10.96.0.10
     amf             IN  A   10.46.0.2
     smf             IN  A   10.46.0.3
     upf             IN  A   10.46.0.4
@@ -140,7 +140,7 @@ metadata:
     app: dns
 spec:
   type: ClusterIP
-  clusterIP: 10.45.0.10
+  clusterIP: 10.96.0.10
   ports:
   - port: 53
     targetPort: 53
