@@ -140,7 +140,6 @@ metadata:
     app: dns
 spec:
   type: ClusterIP
-  clusterIP: 10.96.0.10
   ports:
   - port: 53
     targetPort: 53
