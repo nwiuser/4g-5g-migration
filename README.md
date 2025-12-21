@@ -346,11 +346,11 @@ with
 # 4G Core Network + IMS + SMS over SGs (uses Kamailio IMS)
 docker compose -f 4g-volte-deploy.yaml up
 
-# 4G Core Network + IMS + SMS over SGs (uses openSIPS IMS)
-docker compose -f 4g-volte-opensips-ims-deploy.yaml up
+<!-- # 4G Core Network + IMS + SMS over SGs (uses openSIPS IMS)
+docker compose -f 4g-volte-opensips-ims-deploy.yaml up -->
 
 # srsRAN eNB using SDR (OTA)
-docker compose -f srsenb.yaml up -d && docker container attach srsenb
+docker compose -f srsenb.yaml up -d && docker container attach srsenb 
 
 # srsRAN ZMQ eNB (RF simulated)
 docker compose -f srsenb_zmq.yaml up -d && docker container attach srsenb_zmq
@@ -359,7 +359,7 @@ docker compose -f srsenb_zmq.yaml up -d && docker container attach srsenb_zmq
 docker compose -f srsue_zmq.yaml up -d && docker container attach srsue_zmq
 
 # 4G Core Network + IMS + SMS over SGs (uses Kamailio IMS) + Osmo-epdg + Strongswan-epdg
-docker compose -f 4g-volte--vowifi-deploy.yaml up
+docker compose -f 4g-volte-vowifi-deploy.yaml up
 
 # SWu-IKEv2 (ePDG testing)
 docker compose -f swu_client.yaml up -d && docker container attach swu_client

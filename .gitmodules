@@ -1,0 +1,3 @@
+[submodule "docker_open5gs"]
+	path = docker_open5gs
+	url = https://github.com/nwiuser/open5gs_docker

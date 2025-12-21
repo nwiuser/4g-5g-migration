@@ -262,6 +262,12 @@ services:
       - /etc/localtime:/etc/localtime:ro
     expose:
       - "3306/tcp"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pims"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       default:
         ipv4_address: ${MYSQL_IP}
@@ -278,8 +284,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - dns
-      - mysql
+      dns:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     expose:
       - "${PYHSS_BIND_PORT}/tcp"
       - "${PYHSS_BIND_PORT}/sctp"
@@ -302,9 +310,12 @@ services:
     environment:
       - COMPONENT_NAME=icscf
     depends_on:
-      - dns
-      - mysql
-      - pyhss
+      dns:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      pyhss:
+        condition: service_started
     expose:
       - "${ICSCF_BIND_PORT}/tcp"
       - "${ICSCF_BIND_PORT}/sctp"
@@ -326,9 +337,12 @@ services:
     environment:
       - COMPONENT_NAME=scscf
     depends_on:
-      - dns
-      - mysql
-      - pyhss
+      dns:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      pyhss:
+        condition: service_started
     expose:
       - "${SCSCF_BIND_PORT}/tcp"
       - "${SCSCF_BIND_PORT}/sctp"
@@ -354,11 +368,16 @@ services:
       - COMPONENT_NAME=pcscf
       - DEPLOY_MODE=4G
     depends_on:
-      - dns
-      - mysql
-      - rtpengine
-      - icscf
-      - scscf
+      dns:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      rtpengine:
+        condition: service_started
+      icscf:
+        condition: service_started
+      scscf:
+        condition: service_started
     expose:
       - "${PCSCF_BIND_PORT}/tcp"
       - "${PCSCF_BIND_PORT}/sctp"
@@ -384,8 +403,10 @@ services:
     environment:
       - COMPONENT_NAME=smsc
     depends_on:
-      - dns
-      - mysql
+      dns:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     expose:
       - "7090/udp"
       - "7090/tcp"

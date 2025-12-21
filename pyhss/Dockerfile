@@ -53,12 +53,26 @@ RUN curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyri
     apt-get install -y --no-install-recommends redis
 
 # Get pyhss code and install
-RUN git clone https://github.com/nickvsnetworking/pyhss && \
-    cd pyhss && git checkout tags/1.0.2
+RUN git clone https://github.com/nickvsnetworking/pyhss && cd pyhss && git checkout master \
+    && sed -i 's/.create(bind=self.engine)/.create(bind=self.engine, checkfirst=True)/' lib/database.py \
+    && python3 - <<'PY'
+import io,sys
+p='lib/database.py'
+txt=open(p,'r',encoding='utf-8').read()
+if 'database_exists' not in txt:
+    # add import for database_exists if create_database is used
+    txt=txt.replace('from sqlalchemy_utils import create_database', 'from sqlalchemy_utils import create_database, database_exists')
+if 'create_database' in txt and 'database_exists' in txt:
+    txt=txt.replace('create_database(engine.url)', "if not database_exists(engine.url):\n        create_database(engine.url)")
+open(p,'w',encoding='utf-8').write(txt)
+PY
 RUN cd pyhss && pip3 install -r requirements.txt
 
 RUN mkdir -p /pyhss/log/
 
+COPY ./pyhss_init.sh /pyhss/pyhss_init.sh
+RUN chmod +x /pyhss/pyhss_init.sh
+
 WORKDIR /pyhss
 
-CMD ["/mnt/pyhss/pyhss_init.sh"]
+CMD ["/pyhss/pyhss_init.sh"]

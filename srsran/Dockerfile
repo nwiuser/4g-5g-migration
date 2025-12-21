@@ -31,17 +31,36 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install updates and dependencies
 RUN apt-get update && \
     apt-get -y install cmake make gcc g++ pkg-config libfftw3-dev libmbedtls-dev libsctp-dev libyaml-cpp-dev libgtest-dev \
-    libzmq3-dev software-properties-common pkg-config net-tools iputils-ping git libuhd-dev uhd-host
+    libzmq3-dev software-properties-common pkg-config net-tools iputils-ping git libuhd-dev uhd-host ccache
+
+# Configure ccache for faster rebuilds
+ENV PATH="/usr/lib/ccache:$PATH"
+ENV CCACHE_DIR=/ccache
+RUN mkdir -p /ccache
 
 # Download FPGA images for USRP devices
 RUN uhd_images_downloader
 
-# Get srsRAN_Project, compile and install
-RUN git clone https://github.com/herlesupreeth/srsRAN_Project.git && \
-    cd srsRAN_Project && git checkout 11c9bbabb69873752500d676f55e0034f6caa5c5 && \
-    mkdir build && cd build && \
-    cmake ../ -DENABLE_EXPORT=ON -DENABLE_ZEROMQ=ON && make -j`nproc` && make install && \
-    ldconfig
+# Clone srsRAN_Project (cached if already done)
+RUN git clone https://github.com/herlesupreeth/srsRAN_Project.git
+
+# Checkout specific version (cached separately)
+WORKDIR /srsRAN_Project
+RUN git checkout 11c9bbabb69873752500d676f55e0034f6caa5c5
+
+# Configure CMake (cached if source unchanged)
+RUN mkdir -p build
+WORKDIR /srsRAN_Project/build
+RUN cmake ../ -DENABLE_EXPORT=ON -DENABLE_ZEROMQ=ON -DCMAKE_BUILD_TYPE=Release
+
+# Compile (this is the slow part, but cached if no code changes)
+# Limit parallel jobs to avoid memory issues
+RUN make -j$(nproc --ignore=1)
+
+# Install
+RUN make install && ldconfig
+
+WORKDIR /
 
 ENV UHD_IMAGES_DIR=/usr/share/uhd/images/
 
