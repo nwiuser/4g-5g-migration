@@ -74,8 +74,6 @@ spec:
       labels:
         {{- include "open5gs-4g.selectorLabels" . | nindent 8 }}
         component: mme
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/mme-configmap.yaml") . | sha256sum }}
     spec:
       containers:
       - name: mme
