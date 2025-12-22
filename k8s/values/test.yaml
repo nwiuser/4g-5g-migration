@@ -29,8 +29,11 @@ open5gs-4g:
     enabled: true
     replicaCount: 1
     image:
-      repository: openverso/open5gs
-      tag: "2.7.0"
+      repository: gradiant/open5gs
+      tag: "2.6.6"
+    service:
+      s1apPort: 36412
+      gtpcPort: 2123
     resources:
       requests:
         memory: "128Mi"
@@ -38,13 +41,25 @@ open5gs-4g:
       limits:
         memory: "512Mi"
         cpu: "300m"
+    config:
+      s1ap:
+        - addr: 0.0.0.0
+      gtpc:
+        - addr: 10.45.0.2
+      metrics:
+        - addr: 0.0.0.0
+          port: 9090
   
   webui:
     enabled: true
     replicaCount: 1
     image:
-      repository: openverso/open5gs
-      tag: "2.7.0"
+      repository: gradiant/open5gs-webui
+      tag: "2.6.6"
+    service:
+      type: NodePort
+      port: 9999
+      nodePort: 30999
     resources:
       requests:
         memory: "64Mi"
@@ -75,8 +90,11 @@ open5gs-5g:
     enabled: true
     replicaCount: 1
     image:
-      repository: openverso/open5gs
-      tag: "2.7.0"
+      repository: gradiant/open5gs
+      tag: "2.6.6"
+    service:
+      ngapPort: 38412
+      sbiPort: 7777
     resources:
       requests:
         memory: "128Mi"
@@ -84,6 +102,26 @@ open5gs-5g:
       limits:
         memory: "512Mi"
         cpu: "300m"
+    config:
+      ngap:
+        - addr: 0.0.0.0
+      metrics:
+        - addr: 0.0.0.0
+          port: 9090
+      guami:
+        - plmn_id:
+            mcc: "001"
+            mnc: "01"
+          amf_id:
+            region: 2
+            set: 1
+  
+  # Network slicing configuration (required by AMF template)
+  slicing:
+    enabled: true
+    slices:
+      - sst: 1
+        sd: "000001"
   
   # Disable all components without templates  
   nrf:
@@ -105,8 +143,6 @@ open5gs-5g:
   nssf:
     enabled: false
   bsf:
-    enabled: false
-  slicing:
     enabled: false
   autoscaling:
     enabled: false

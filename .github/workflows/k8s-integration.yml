@@ -67,14 +67,16 @@ jobs:
       - name: Template 4G Chart
         run: |
           helm template open5gs-4g k8s/helm/open5gs-4g \
-            --values k8s/values/dev.yaml \
-            --namespace 4g-core
+            --values k8s/values/test.yaml \
+            --namespace 4g-core \
+            --debug
 
       - name: Template 5G Chart
         run: |
           helm template open5gs-5g k8s/helm/open5gs-5g \
-            --values k8s/values/dev.yaml \
-            --namespace 5g-core
+            --values k8s/values/test.yaml \
+            --namespace 5g-core \
+            --debug
 
   deploy-test-4g:
     name: Deploy and Test 4G Core
@@ -155,7 +157,27 @@ jobs:
             --namespace 4g-core \
             --values k8s/values/test.yaml \
             --wait --timeout 15m \
-            --debug
+            --debug || true
+
+      - name: Diagnose 4G deployment if failed
+        run: |
+          echo "=== All Pods in 4g-core ==="
+          kubectl get pods -n 4g-core -o wide
+          
+          echo "=== MME Pod Details ==="
+          kubectl describe pod -l component=mme -n 4g-core || echo "MME pod not found"
+          
+          echo "=== WebUI Pod Details ==="
+          kubectl describe pod -l component=webui -n 4g-core || echo "WebUI pod not found"
+          
+          echo "=== 4G Events ==="
+          kubectl get events -n 4g-core --sort-by='.lastTimestamp' | tail -20
+          
+          echo "=== MME Logs ==="
+          kubectl logs -l component=mme -n 4g-core --tail=100 || echo "No MME logs"
+          
+          echo "=== WebUI Logs ==="
+          kubectl logs -l component=webui -n 4g-core --tail=100 || echo "No WebUI logs"
 
       - name: Wait for 4G pods ready
         run: |
@@ -267,7 +289,30 @@ jobs:
             --namespace 5g-core \
             --values k8s/values/test.yaml \
             --wait --timeout 15m \
-            --debug
+            --debug || true
+
+      - name: Diagnose 5G deployment if failed
+        run: |
+          echo "=== All Pods in 5g-core ==="
+          kubectl get pods -n 5g-core -o wide
+          
+          echo "=== AMF Pod Details ==="
+          kubectl describe pod -l component=amf -n 5g-core
+          
+          echo "=== AMF Pod Events ==="
+          kubectl get events -n 5g-core --field-selector involvedObject.kind=Pod --sort-by='.lastTimestamp' | tail -20
+          
+          echo "=== AMF Logs (if exists) ==="
+          kubectl logs -l component=amf -n 5g-core --tail=100 || echo "No logs available"
+          
+          echo "=== Check if image exists ==="
+          kubectl get pods -n 5g-core -o jsonpath='{.items[*].spec.containers[*].image}' || true
+          
+          echo "=== MongoDB Status ==="
+          kubectl get pods -n shared-services -l app=mongodb
+          
+          echo "=== DNS Status ==="
+          kubectl get pods -n shared-services -l app=dns
 
       - name: Wait for 5G pods ready
         run: |

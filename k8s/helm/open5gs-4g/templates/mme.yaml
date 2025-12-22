@@ -14,7 +14,6 @@ data:
       level: info
 
     mme:
-      freeDiameter: /mnt/mme/mme.conf
       s1ap:
       {{- range .Values.mme.config.s1ap }}
         - addr: {{ .addr }}
@@ -46,14 +45,6 @@ data:
         full: Open5GS
         short: Next
 
-    sgwc:
-      gtpc:
-        - addr: sgwc.{{ .Values.global.namespace }}.svc.cluster.local
-
-    smf:
-      gtpc:
-        - addr: smf.{{ .Values.global.namespace }}.svc.cluster.local
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -79,6 +70,8 @@ spec:
       - name: mme
         image: "{{ .Values.mme.image.repository }}:{{ .Values.mme.image.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        command: ["open5gs-mmed"]
+        args: ["-c", "/mnt/mme/mme.yaml"]
         env:
         - name: COMPONENT_NAME
           value: "mme"
@@ -104,13 +97,17 @@ spec:
         livenessProbe:
           tcpSocket:
             port: metrics
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           tcpSocket:
             port: metrics
-          initialDelaySeconds: 5
+          initialDelaySeconds: 30
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
       volumes:
       - name: mme-config
         configMap:

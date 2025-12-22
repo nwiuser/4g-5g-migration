@@ -59,11 +59,6 @@ data:
         short: Next
       amf_name: open5gs-amf0
 
-    nrf:
-      sbi:
-        - addr: nrf.{{ .Values.global.namespace }}.svc.cluster.local
-          port: 7777
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -89,6 +84,8 @@ spec:
       - name: amf
         image: "{{ .Values.amf.image.repository }}:{{ .Values.amf.image.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        command: ["open5gs-amfd"]
+        args: ["-c", "/mnt/amf/amf.yaml"]
         env:
         - name: COMPONENT_NAME
           value: "amf"
@@ -112,17 +109,19 @@ spec:
         resources:
           {{- toYaml .Values.amf.resources | nindent 10 }}
         livenessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
+            port: sbi
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
             port: sbi
           initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: sbi
-          initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
       volumes:
       - name: amf-config
         configMap:
