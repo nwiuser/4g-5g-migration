@@ -5,43 +5,41 @@ metadata:
   name: dns-config
   namespace: shared-services
 data:
-  named.conf: |
-    options {
-        directory "/var/cache/bind";
-        recursion yes;
-        allow-query { any; };
-        forwarders {
-            8.8.8.8;
-            8.8.4.4;
-        };
-    };
+  Corefile: |
+    .:53 {
+        errors
+        health {
+          lameduck 5s
+        }
+        ready
+        
+        # EPC zone
+        file /etc/coredns/epc.zone epc.mnc001.mcc001.3gppnetwork.org
+        
+        # IMS zone  
+        file /etc/coredns/ims.zone ims.mnc001.mcc001.3gppnetwork.org
+        
+        # 5GC zone
+        file /etc/coredns/5gc.zone 5gc.mnc001.mcc001.3gppnetwork.org
+        
+        # Forward everything else to Google DNS
+        forward . 8.8.8.8 8.8.4.4
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
 
-    zone "epc.mnc001.mcc001.3gppnetwork.org" {
-        type master;
-        file "/etc/bind/epc_zone";
-    };
+  epc.zone: |
+    $ORIGIN epc.mnc001.mcc001.3gppnetwork.org.
+    @   3600 IN SOA sns.dns.icann.org. noc.dns.icann.org. (
+                2024010101 ; serial
+                7200       ; refresh
+                3600       ; retry
+                1209600    ; expire
+                3600       ; minimum
+                )
 
-    zone "ims.mnc001.mcc001.3gppnetwork.org" {
-        type master;
-        file "/etc/bind/ims_zone";
-    };
-
-    zone "5gc.mnc001.mcc001.3gppnetwork.org" {
-        type master;
-        file "/etc/bind/5gc_zone";
-    };
-
-  epc_zone: |
-    $TTL 1
-    @   IN  SOA epc.mnc001.mcc001.3gppnetwork.org. admin.epc.mnc001.mcc001.3gppnetwork.org. (
-                1    ; Serial
-                60   ; Refresh
-                60   ; Retry
-                60   ; Expire
-                60 ) ; Minimum TTL
-        IN  NS  ns.epc.mnc001.mcc001.3gppnetwork.org.
-    
-    ns              IN  A   10.96.0.10
     mme             IN  A   10.45.0.2
     hss             IN  A   10.45.0.3
     pcrf            IN  A   10.45.0.4
@@ -50,32 +48,30 @@ data:
     smf             IN  A   10.45.0.7
     upf             IN  A   10.45.0.8
 
-  ims_zone: |
-    $TTL 1
-    @   IN  SOA ims.mnc001.mcc001.3gppnetwork.org. admin.ims.mnc001.mcc001.3gppnetwork.org. (
-                1    ; Serial
-                60   ; Refresh
-                60   ; Retry
-                60   ; Expire
-                60 ) ; Minimum TTL
-        IN  NS  ns.ims.mnc001.mcc001.3gppnetwork.org.
-    
-    ns              IN  A   10.96.0.10
+  ims.zone: |
+    $ORIGIN ims.mnc001.mcc001.3gppnetwork.org.
+    @   3600 IN SOA sns.dns.icann.org. noc.dns.icann.org. (
+                2024010101 ; serial
+                7200       ; refresh
+                3600       ; retry
+                1209600    ; expire
+                3600       ; minimum
+                )
+
     pcscf           IN  A   10.45.0.20
     icscf           IN  A   10.45.0.21
     scscf           IN  A   10.45.0.22
 
-  5gc_zone: |
-    $TTL 1
-    @   IN  SOA 5gc.mnc001.mcc001.3gppnetwork.org. admin.5gc.mnc001.mcc001.3gppnetwork.org. (
-                1    ; Serial
-                60   ; Refresh
-                60   ; Retry
-                60   ; Expire
-                60 ) ; Minimum TTL
-        IN  NS  ns.5gc.mnc001.mcc001.3gppnetwork.org.
-    
-    ns              IN  A   10.96.0.10
+  5gc.zone: |
+    $ORIGIN 5gc.mnc001.mcc001.3gppnetwork.org.
+    @   3600 IN SOA sns.dns.icann.org. noc.dns.icann.org. (
+                2024010101 ; serial
+                7200       ; refresh
+                3600       ; retry
+                1209600    ; expire
+                3600       ; minimum
+                )
+
     amf             IN  A   10.46.0.2
     smf             IN  A   10.46.0.3
     upf             IN  A   10.46.0.4
@@ -106,9 +102,12 @@ spec:
         component: dns-server
     spec:
       containers:
-      - name: dns
-        image: docker_dns:latest
+      - name: coredns
+        image: coredns/coredns:1.11.1
         imagePullPolicy: IfNotPresent
+        args:
+          - -conf
+          - /etc/coredns/Corefile
         ports:
         - containerPort: 53
           protocol: UDP
@@ -116,20 +115,54 @@ spec:
         - containerPort: 53
           protocol: TCP
           name: dns-tcp
+        - containerPort: 8080
+          protocol: TCP
+          name: health
+        - containerPort: 8181
+          protocol: TCP
+          name: ready
         volumeMounts:
         - name: dns-config
-          mountPath: /etc/bind
+          mountPath: /etc/coredns
+          readOnly: true
         resources:
           requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
             memory: "128Mi"
             cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8181
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
       - name: dns-config
         configMap:
           name: dns-config
+          items:
+          - key: Corefile
+            path: Corefile
+          - key: epc.zone
+            path: epc.zone
+          - key: ims.zone
+            path: ims.zone
+          - key: 5gc.zone
+            path: 5gc.zone
 ---
 apiVersion: v1
 kind: Service
