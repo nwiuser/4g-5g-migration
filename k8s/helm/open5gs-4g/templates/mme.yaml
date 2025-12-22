@@ -77,6 +77,9 @@ spec:
         command: ["sh", "-c"]
         args:
           - |
+            # Increase file descriptor limits
+            ulimit -n 65536
+            
             # Find the open5gs-mmed binary
             if [ -x /bin/open5gs-mmed ]; then
               /bin/open5gs-mmed -c /mnt/mme/mme.yaml
@@ -87,6 +90,9 @@ spec:
             fi
         securityContext:
           privileged: true
+          capabilities:
+            add:
+              - SYS_RESOURCE
         env:
         - name: COMPONENT_NAME
           value: "mme"

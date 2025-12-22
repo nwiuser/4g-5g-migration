@@ -91,6 +91,9 @@ spec:
         command: ["sh", "-c"]
         args:
           - |
+            # Increase file descriptor limits
+            ulimit -n 65536
+            
             # Find the open5gs-amfd binary
             if [ -x /bin/open5gs-amfd ]; then
               /bin/open5gs-amfd -c /mnt/amf/amf.yaml
@@ -101,6 +104,9 @@ spec:
             fi
         securityContext:
           privileged: true
+          capabilities:
+            add:
+              - SYS_RESOURCE
         env:
         - name: COMPONENT_NAME
           value: "amf"
