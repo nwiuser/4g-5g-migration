@@ -90,6 +90,13 @@ spec:
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         command: ["open5gs-amfd"]
         args: ["-c", "/mnt/amf/amf.yaml"]
+        securityContext:
+          privileged: false
+          capabilities:
+            add:
+              - NET_ADMIN
+              - NET_RAW
+              - SYS_NICE
         env:
         - name: COMPONENT_NAME
           value: "amf"
