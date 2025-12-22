@@ -88,8 +88,7 @@ spec:
       - name: amf
         image: "{{ .Values.amf.image.repository }}:{{ .Values.amf.image.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        command: ["open5gs-amfd"]
-        args: ["-c", "/mnt/amf/amf.yaml"]
+        command: ["/bin/open5gs-amfd", "-c", "/mnt/amf/amf.yaml"]
         securityContext:
           privileged: true
         env:

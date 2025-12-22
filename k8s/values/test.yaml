@@ -29,8 +29,8 @@ open5gs-4g:
     enabled: true
     replicaCount: 1
     image:
-      repository: gradiant/open5gs
-      tag: "2.6.6"
+      repository: herlesupreeth/docker_open5gs
+      tag: latest
     service:
       s1apPort: 36412
       gtpcPort: 2123
@@ -54,8 +54,8 @@ open5gs-4g:
     enabled: true
     replicaCount: 1
     image:
-      repository: gradiant/open5gs-webui
-      tag: "2.6.6"
+      repository: herlesupreeth/docker_open5gs
+      tag: latest
     service:
       type: NodePort
       port: 9999
@@ -90,8 +90,8 @@ open5gs-5g:
     enabled: true
     replicaCount: 1
     image:
-      repository: gradiant/open5gs
-      tag: "2.6.6"
+      repository: herlesupreeth/docker_open5gs
+      tag: latest
     service:
       ngapPort: 38412
       sbiPort: 7777

@@ -74,8 +74,7 @@ spec:
       - name: mme
         image: "{{ .Values.mme.image.repository }}:{{ .Values.mme.image.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        command: ["open5gs-mmed"]
-        args: ["-c", "/mnt/mme/mme.yaml"]
+        command: ["/bin/open5gs-mmed", "-c", "/mnt/mme/mme.yaml"]
         securityContext:
           privileged: true
         env:
