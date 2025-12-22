@@ -77,12 +77,7 @@ spec:
         command: ["open5gs-mmed"]
         args: ["-c", "/mnt/mme/mme.yaml"]
         securityContext:
-          privileged: false
-          capabilities:
-            add:
-              - NET_ADMIN
-              - NET_RAW
-              - SYS_NICE
+          privileged: true
         env:
         - name: COMPONENT_NAME
           value: "mme"
