@@ -38,8 +38,8 @@ mme:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     s1apPort: 36412
@@ -65,11 +65,11 @@ mme:
 
 ## HSS Configuration
 hss:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     diameterPort: 3868
@@ -87,11 +87,11 @@ hss:
 
 ## PCRF Configuration
 pcrf:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     diameterPort: 3868
@@ -105,11 +105,11 @@ pcrf:
 
 ## SGWC Configuration
 sgwc:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     gtpcPort: 2123
@@ -129,11 +129,11 @@ sgwc:
 
 ## SGWU Configuration
 sgwu:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     gtpuPort: 2152
@@ -153,11 +153,11 @@ sgwu:
 
 ## SMF Configuration (PGW-C function)
 smf:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     gtpcPort: 2123
@@ -181,11 +181,11 @@ smf:
 
 ## UPF Configuration (PGW-U function)
 upf:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     gtpuPort: 2152
@@ -211,8 +211,8 @@ webui:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: NodePort
     port: 9999
@@ -236,7 +236,7 @@ webui:
 
 ## Metrics and Monitoring
 metrics:
-  enabled: true
+  enabled: false  # Pas de template disponible
   serviceMonitor:
-    enabled: true
+    enabled: false
     interval: 30s

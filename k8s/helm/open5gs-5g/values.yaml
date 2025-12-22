@@ -49,11 +49,11 @@ slicing:
 
 ## NRF Configuration (Network Repository Function)
 nrf:
-  enabled: true
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -67,11 +67,11 @@ nrf:
 
 ## SCP Configuration (Service Communication Proxy)
 scp:
-  enabled: false
+  enabled: false  # Pas de template disponible
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -79,10 +79,10 @@ scp:
 ## AMF Configuration (Access and Mobility Management Function)
 amf:
   enabled: true
-  replicaCount: 2
+  replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     ngapPort: 38412
@@ -113,8 +113,8 @@ smf:
   enabled: true
   replicaCount: 2
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -151,8 +151,8 @@ upf:
   enabled: true
   replicaCount: 2
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     pfcpPort: 8805
@@ -185,8 +185,8 @@ ausf:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -203,8 +203,8 @@ udm:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -221,8 +221,8 @@ udr:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -239,8 +239,8 @@ pcf:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -257,8 +257,8 @@ nssf:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -275,8 +275,8 @@ bsf:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: ClusterIP
     sbiPort: 7777
@@ -293,8 +293,8 @@ webui:
   enabled: true
   replicaCount: 1
   image:
-    repository: docker_open5gs
-    tag: latest
+    repository: openverso/open5gs
+    tag: "2.7.0"
   service:
     type: NodePort
     port: 9999

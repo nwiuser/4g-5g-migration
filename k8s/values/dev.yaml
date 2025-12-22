@@ -1,12 +1,14 @@
 # Configuration pour l'environnement de développement
+# Note: Seulement MME+WebUI pour 4G et AMF pour 5G sont disponibles actuellement
 
 ## Ressources minimales
 global:
   environment: dev
 
-## 4G Core - Resources minimales
+## 4G Core - Seulement MME et WebUI disponibles
 open5gs-4g:
   mme:
+    enabled: true
     replicaCount: 1
     resources:
       requests:
@@ -15,89 +17,40 @@ open5gs-4g:
       limits:
         memory: "512Mi"
         cpu: "300m"
-  hss:
+  
+  webui:
+    enabled: true
+    replicaCount: 1
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+## 5G Core - Seulement AMF disponible
+open5gs-5g:
+  amf:
+    enabled: true
     replicaCount: 1
     resources:
       requests:
         memory: "128Mi"
-        cpu: "50m"
+        cpu: "100m"
       limits:
-        memory: "256Mi"
-        cpu: "150m"
-  sgwc:
-    replicaCount: 1
-  sgwu:
-    replicaCount: 1
-  smf:
-    replicaCount: 1
-  upf:
-    replicaCount: 1
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "200m"
-      limits:
-        memory: "1Gi"
-        cpu: "500m"
-
-## 5G Core - Resources minimales
-open5gs-5g:
-  nrf:
-    replicaCount: 1
-  amf:
-    replicaCount: 1
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "150m"
-      limits:
-        memory: "1Gi"
-        cpu: "500m"
-  smf:
-    replicaCount: 1
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "150m"
-      limits:
-        memory: "1Gi"
-        cpu: "500m"
-  upf:
-    replicaCount: 1
-    resources:
-      requests:
         memory: "512Mi"
-        cpu: "250m"
+        cpu: "300m"
+        memory: "256Mi"
+        cpu: "150m"
       limits:
-        memory: "2Gi"
-        cpu: "1000m"
-  ausf:
-    replicaCount: 1
-  udm:
-    replicaCount: 1
-  udr:
-    replicaCount: 1
-  pcf:
-    replicaCount: 1
-  nssf:
-    replicaCount: 1
-  bsf:
-    replicaCount: 1
-  
-  # Network Slicing - Configuration simple
-  slicing:
-    enabled: true
-    slices:
-      - sst: 1  # eMBB
-        sd: "000001"
-        dnn: internet
-  
-  # Auto-scaling désactivé en dev
-  autoscaling:
-    enabled: false
+        memory: "1Gi"
+        cpu: "500m"
+  smf:
 
-## Monitoring - Configuration basique
+## Monitoring - Configuration basique (désactivé pour tests initiaux)
 monitoring:
+  enabled: false
   prometheus:
     retention: 7d
     storageSize: 10Gi
@@ -109,3 +62,15 @@ monitoring:
 logging:
   level: debug
   retention: 3d
+
+## MongoDB - Utilise le service partagé
+mongodb:
+  external: true
+  host: mongodb.shared-services
+  port: 27017
+  
+## DNS - Utilise le service partagé
+dns:
+  external: true
+  host: dns.shared-services
+  port: 53

@@ -1,0 +1,114 @@
+# Minimal test configuration - Only components with templates
+
+global:
+  environment: test
+  imageRegistry: docker.io
+  imagePullPolicy: IfNotPresent
+  
+  network:
+    plmnId:
+      mcc: "001"
+      mnc: "01"
+    tac: 7
+    
+  mongodb:
+    enabled: true
+    host: mongodb.shared-services.svc.cluster.local
+    port: 27017
+    database: open5gs
+    username: admin
+    passwordSecret: mongodb-secret
+    
+  dns:
+    enabled: true
+    server: dns.shared-services.svc.cluster.local
+
+## 4G Core - Only MME and WebUI (templates exist)
+open5gs-4g:
+  mme:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: openverso/open5gs
+      tag: "2.7.0"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"
+  
+  webui:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: openverso/open5gs
+      tag: "2.7.0"
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+  
+  # Disable all components without templates
+  hss:
+    enabled: false
+  pcrf:
+    enabled: false
+  sgwc:
+    enabled: false
+  sgwu:
+    enabled: false
+  smf:
+    enabled: false
+  upf:
+    enabled: false
+  metrics:
+    enabled: false
+
+## 5G Core - Only AMF (template exists)
+open5gs-5g:
+  amf:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: openverso/open5gs
+      tag: "2.7.0"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"
+  
+  # Disable all components without templates  
+  nrf:
+    enabled: false
+  scp:
+    enabled: false
+  smf:
+    enabled: false
+  upf:
+    enabled: false
+  ausf:
+    enabled: false
+  udm:
+    enabled: false
+  udr:
+    enabled: false
+  pcf:
+    enabled: false
+  nssf:
+    enabled: false
+  bsf:
+    enabled: false
+  slicing:
+    enabled: false
+  autoscaling:
+    enabled: false
+  metrics:
+    enabled: false
