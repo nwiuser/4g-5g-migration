@@ -158,6 +158,12 @@ jobs:
             --values k8s/values/test.yaml \
             --wait --timeout 15m \
             --debug || true
+          
+          echo "=== Helm release status ==="
+          helm list -n 4g-core
+          
+          echo "=== Kubernetes resources created ==="
+          kubectl get all -n 4g-core
 
       - name: Diagnose 4G deployment if failed
         run: |
@@ -290,6 +296,12 @@ jobs:
             --values k8s/values/test.yaml \
             --wait --timeout 15m \
             --debug || true
+          
+          echo "=== Helm release status ==="
+          helm list -n 5g-core
+          
+          echo "=== Kubernetes resources created ==="
+          kubectl get all -n 5g-core
 
       - name: Diagnose 5G deployment if failed
         run: |
