@@ -87,8 +87,18 @@ spec:
       containers:
       - name: amf
         image: "{{ .Values.amf.image.repository }}:{{ .Values.amf.image.tag }}"
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        command: ["/bin/open5gs-amfd", "-c", "/mnt/amf/amf.yaml"]
+        imagePullPolicy: Always
+        command: ["sh", "-c"]
+        args:
+          - |
+            # Find the open5gs-amfd binary
+            if [ -x /bin/open5gs-amfd ]; then
+              /bin/open5gs-amfd -c /mnt/amf/amf.yaml
+            elif [ -x /usr/bin/open5gs-amfd ]; then
+              /usr/bin/open5gs-amfd -c /mnt/amf/amf.yaml
+            else
+              open5gs-amfd -c /mnt/amf/amf.yaml
+            fi
         securityContext:
           privileged: true
         env:

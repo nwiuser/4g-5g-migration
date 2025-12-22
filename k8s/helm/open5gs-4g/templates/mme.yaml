@@ -73,8 +73,18 @@ spec:
       containers:
       - name: mme
         image: "{{ .Values.mme.image.repository }}:{{ .Values.mme.image.tag }}"
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        command: ["/bin/open5gs-mmed", "-c", "/mnt/mme/mme.yaml"]
+        imagePullPolicy: Always
+        command: ["sh", "-c"]
+        args:
+          - |
+            # Find the open5gs-mmed binary
+            if [ -x /bin/open5gs-mmed ]; then
+              /bin/open5gs-mmed -c /mnt/mme/mme.yaml
+            elif [ -x /usr/bin/open5gs-mmed ]; then
+              /usr/bin/open5gs-mmed -c /mnt/mme/mme.yaml
+            else
+              open5gs-mmed -c /mnt/mme/mme.yaml
+            fi
         securityContext:
           privileged: true
         env:
